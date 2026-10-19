@@ -1,0 +1,290 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap');
+
+.nexogen-editor {
+  --background: 222 23% 10%;
+  --foreground: 210 24% 92%;
+  --border: 220 17% 22%;
+  --card: 222 21% 13%;
+  --card-foreground: 210 24% 92%;
+  --primary: 213 90% 62%;
+  --primary-foreground: 220 25% 10%;
+  --muted: 220 16% 18%;
+  --muted-foreground: 216 12% 62%;
+  --input: 220 17% 25%;
+  --ring: 213 90% 62%;
+  --app-font-sans: 'DM Sans', sans-serif;
+  --app-font-serif: 'DM Serif Display', Georgia, serif;
+  --app-font-mono: 'DM Mono', monospace;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  background: #161a22;
+  color: #e8edf5;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.nexogen-editor *,
+.nexogen-editor *::before,
+.nexogen-editor *::after {
+  box-sizing: border-box;
+}
+
+.nexogen-editor button,
+.nexogen-editor input,
+.nexogen-editor textarea,
+.nexogen-editor select {
+  font: inherit;
+}
+
+.nexogen-editor button {
+  cursor: pointer;
+}
+
+.nexogen-editor button:focus-visible,
+.nexogen-editor a:focus-visible,
+.nexogen-editor input:focus-visible,
+.nexogen-editor textarea:focus-visible,
+.nexogen-editor select:focus-visible {
+  outline: 2px solid #74aaff;
+  outline-offset: 2px;
+}
+
+.nexogen-editor a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.nexogen-editor .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -.04em;
+}
+
+.nexogen-editor .brand-mark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #78aaff;
+  color: #13223b;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.nexogen-editor .demo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid #354052;
+  border-radius: 999px;
+  color: #aebbd0;
+  font: 10px 'DM Mono', monospace;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.nexogen-editor .primary-button,
+.nexogen-editor .secondary-button,
+.nexogen-editor .quiet-button,
+.nexogen-editor .danger-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: background .16s, border-color .16s, transform .16s;
+}
+
+.nexogen-editor .primary-button {
+  background: #78aaff;
+  color: #13223b;
+}
+
+.nexogen-editor .primary-button:hover {
+  background: #93bbff;
+  transform: translateY(-1px);
+}
+
+.nexogen-editor .secondary-button {
+  background: #29313e;
+  border-color: #3a4556;
+  color: #dbe5f4;
+}
+
+.nexogen-editor .secondary-button:hover,
+.nexogen-editor .quiet-button:hover {
+  background: #313b4a;
+}
+
+.nexogen-editor .quiet-button {
+  background: transparent;
+  border-color: #374150;
+  color: #a8b2c2;
+}
+
+.nexogen-editor .danger-button {
+  background: #38272b;
+  border-color: #58373b;
+  color: #ffaaa6;
+}
+
+.nexogen-editor .wide {
+  width: 100%;
+}
+
+.nexogen-editor .template-hint {
+  margin-top: 14px;
+  color: #7f8b9e;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.nexogen-editor .meta {
+  color: #8793a5;
+  font-size: 11px;
+}
+
+.nexogen-editor .status-box {
+  padding: 14px 16px;
+  border: 1px solid #344153;
+  border-radius: 8px;
+  background: #202a39;
+  color: #a8b7cc;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.nexogen-editor .editor-shell { min-height:100dvh; display:flex; flex-direction:column; background:#161a22; }
+.nexogen-editor .editor-top { height:60px; border-bottom:1px solid #2c3441; display:flex; align-items:center; padding:0 18px; gap:13px; background:#141820; z-index:5; }
+.nexogen-editor .editor-top .brand { font-size:17px; }
+.nexogen-editor .editor-divider { height:24px; width:1px; background:#333b48; margin:0 3px; }
+.nexogen-editor .editor-name { background:transparent; border:1px solid transparent; border-radius:5px; color:#e4eaf3; padding:6px 8px; width:min(230px,24vw); font-size:12px; }
+.nexogen-editor .editor-name:focus { border-color:#3b4658; outline:none; }
+.nexogen-editor .save-status { color:#8d9bac; font:10px 'DM Mono',monospace; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.nexogen-editor .save-status::before { content:''; width:6px;height:6px;border-radius:50%;background:#76caa7; }
+.nexogen-editor .save-status.saving::before { background:#e8b86f; }
+.nexogen-editor .editor-spacer { flex:1; }
+.nexogen-editor .icon-button { width:32px;height:32px; display:inline-grid; place-items:center; border:1px solid transparent; border-radius:6px; color:#aab5c5; background:transparent; }
+.nexogen-editor .icon-button:hover { background:#272f3b; color:#f0f4fa; }
+.nexogen-editor .icon-button:disabled { opacity:.35; cursor:not-allowed; }
+.nexogen-editor .toolbar-button { display:inline-flex; align-items:center; gap:7px; color:#b9c3d1; background:#222a36; border:1px solid #35404f; border-radius:6px; padding:8px 10px; font-size:11px; white-space:nowrap; }
+.nexogen-editor .toolbar-button:hover { background:#2c3746; }
+.nexogen-editor .editor-content { flex:1; min-height:0; display:grid; grid-template-columns:220px minmax(0,1fr) 260px; }
+.nexogen-editor .side-panel { border-right:1px solid #2b3340; background:#191e27; min-height:calc(100dvh - 60px); overflow:auto; }
+.nexogen-editor .right-panel { border-left:1px solid #2b3340; border-right:0; }
+.nexogen-editor .panel-head { height:48px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid #2b3340; color:#bdc7d5; font-size:11px; font-weight:600; letter-spacing:.02em; }
+.nexogen-editor .panel-body { padding:13px; }
+.nexogen-editor .layers-note { font:9px 'DM Mono',monospace; color:#697689; text-transform:uppercase; letter-spacing:.1em; margin:5px 8px 11px; }
+.nexogen-editor .layer-row { display:flex; align-items:center; gap:7px; border:1px solid transparent; border-radius:6px; padding:8px 7px; margin-bottom:3px; color:#aab5c5; font-size:11px; cursor:pointer; }
+.nexogen-editor .layer-row:hover { background:#232a36; }
+.nexogen-editor .layer-row.selected { background:#25354a; border-color:#385578; color:#e4efff; }
+.nexogen-editor .layer-row.dragging { opacity:.4; }
+.nexogen-editor .layer-grip { color:#657184; display:grid; place-items:center; cursor:grab; }
+.nexogen-editor .layer-title { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.nexogen-editor .layer-move-controls { display:none; align-items:center; }
+.nexogen-editor .layer-mini { display:flex; opacity:0; }
+.nexogen-editor .layer-row:hover .layer-mini,.nexogen-editor .layer-row.selected .layer-mini { opacity:1; }
+.nexogen-editor .add-section-menu { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-top:14px; }
+.nexogen-editor .add-section-menu button { border:1px solid #343e4c; background:#212834; color:#aeb8c7; border-radius:5px; padding:8px 5px; font-size:10px; }
+.nexogen-editor .add-section-menu button:hover { border-color:#5577a8; color:#e4efff; }
+.nexogen-editor .canvas-area { padding:28px clamp(12px,3vw,42px) 60px; overflow:auto; background-color:#171b23; background-image:radial-gradient(#ffffff10 .7px,transparent .7px); background-size:18px 18px; }
+.nexogen-editor .canvas-toolbar { display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:16px; }
+.nexogen-editor .device-button { border:0; background:transparent; color:#7d899a; display:flex; align-items:center; gap:6px; padding:7px 9px; border-radius:5px; font-size:10px; }
+.nexogen-editor .device-button.active { background:#2a3341; color:#dce8f8; }
+.nexogen-editor .canvas-wrap { margin:0 auto; transition:width .2s ease; max-width:100%; }
+.nexogen-editor .canvas-label { display:flex; justify-content:space-between; color:#768396; font:9px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.12em; margin:0 0 8px; }
+.nexogen-editor .site-canvas { min-height:600px; background:var(--site-bg); color:var(--site-text); box-shadow:0 15px 50px #080a0e8a; overflow:hidden; border-radius:5px; }
+.nexogen-editor .site-section { position:relative; padding:48px 8%; transition:outline-color .15s; }
+.nexogen-editor .site-section.selected { outline:2px solid #6da6ff; outline-offset:-2px; }
+.nexogen-editor .site-section:hover .inline-hint { opacity:1; }
+.nexogen-editor .site-section [contenteditable="true"] { cursor:text; }
+.nexogen-editor .site-section [contenteditable="true"]:focus { outline:1px dashed #6da6ff; outline-offset:3px; }
+.nexogen-editor .inline-hint { position:absolute; top:9px; right:11px; color:#6c9ee6; opacity:0; font:9px 'DM Mono',monospace; transition:opacity .15s; }
+.nexogen-editor .site-hero { min-height:295px; display:flex; flex-direction:column; justify-content:center; background:linear-gradient(130deg,var(--site-primary),color-mix(in srgb,var(--site-primary),var(--site-bg) 48%)); color:#fff; }
+.nexogen-editor .site-hero h1 { max-width:600px; font:clamp(34px,4.3vw,58px)/1.02 'DM Serif Display',serif; margin:0 0 15px; letter-spacing:-.03em; }
+.nexogen-editor .site-hero p { max-width:490px; color:#ffffffda; font-size:14px; line-height:1.65; margin:0 0 20px; }
+.nexogen-editor .site-cta { align-self:flex-start; background:#fff; color:#263142; border:0; padding:11px 16px; border-radius:3px; font-size:11px; font-weight:700; }
+.nexogen-editor .site-nav { display:flex; justify-content:space-between; align-items:center; padding:19px 8%; border-bottom:1px solid #00000012; font-size:12px; }
+.nexogen-editor .site-nav strong { font:17px 'DM Serif Display',serif; }
+.nexogen-editor .site-nav span { color:inherit; opacity:.68; }
+.nexogen-editor .site-section h2 { font:30px/1.1 'DM Serif Display',serif; letter-spacing:-.02em; margin:0 0 13px; }
+.nexogen-editor .site-section p { font-size:13px; line-height:1.75; max-width:650px; margin:0; opacity:.78; white-space:pre-line; }
+.nexogen-editor .site-feature { display:grid; grid-template-columns:1fr 1fr; gap:34px; align-items:center; background:color-mix(in srgb,var(--site-bg),var(--site-primary) 7%); }
+.nexogen-editor .feature-visual { height:160px; border-radius:4px; background:linear-gradient(145deg,color-mix(in srgb,var(--site-primary),white 24%),color-mix(in srgb,var(--site-primary),var(--site-bg) 40%)); position:relative; overflow:hidden; }
+.nexogen-editor .feature-visual::before,.nexogen-editor .feature-visual::after { content:''; position:absolute; border:1px solid #ffffff58; border-radius:50%; width:170px;height:170px; right:18%; top:20%; }
+.nexogen-editor .feature-visual::after { width:240px;height:240px; right:5%;top:2%; }
+.nexogen-editor .site-quote { border-left:3px solid var(--site-primary); padding:8px 0 8px 20px; }
+.nexogen-editor .site-quote p { font:22px/1.35 'DM Serif Display',serif; opacity:1; }
+.nexogen-editor .site-quote small { display:block; margin-top:14px; font:10px 'DM Mono',monospace; opacity:.6; }
+.nexogen-editor .site-contact { background:#1c2930; color:#edf4f3; }
+.nexogen-editor .site-footer { padding:25px 8%; font-size:10px; opacity:.62; border-top:1px solid #00000015; }
+.nexogen-editor .property-section { padding:15px 0; border-bottom:1px solid #2c3441; }
+.nexogen-editor .property-section:last-child { border-bottom:0; }
+.nexogen-editor .property-title { color:#8b98aa; font:9px 'DM Mono',monospace; text-transform:uppercase; letter-spacing:.11em; margin:0 0 12px; }
+.nexogen-editor .property-label { display:block; font-size:10px; color:#aab5c5; margin:0 0 7px; }
+.nexogen-editor .property-input { width:100%; border:1px solid #394351; background:#202631; border-radius:5px; padding:8px 9px; color:#e3eaf3; font-size:11px; margin-bottom:10px; }
+.nexogen-editor .property-input:last-child { margin-bottom:0; }
+.nexogen-editor .property-textarea { min-height:90px; resize:vertical; line-height:1.5; }
+.nexogen-editor .color-row { display:flex; align-items:center; gap:9px; margin-bottom:12px; color:#aab5c5; font-size:10px; }
+.nexogen-editor .color-row input[type=color] { width:30px;height:25px; padding:2px; background:#202631; border:1px solid #394351; border-radius:4px; }
+.nexogen-editor .range-row { display:flex; align-items:center; gap:10px; }
+.nexogen-editor .range-row input { width:100%; accent-color:#78aaff; }
+.nexogen-editor .range-value { font:10px 'DM Mono',monospace; color:#9daabe; width:34px; text-align:right; }
+.nexogen-editor .selection-empty { text-align:center; padding:34px 10px; color:#8390a2; font-size:11px; line-height:1.6; }
+.nexogen-editor .mobile-bottom-bar { display:none; }
+.nexogen-editor .toast-message { position:fixed; bottom:22px; left:50%; transform:translateX(-50%); z-index:80; padding:11px 16px; border:1px solid #3c4b61; background:#202b3a; color:#dceaff; border-radius:8px; box-shadow:0 8px 25px #0007; font-size:12px; }
+.nexogen-editor .modal-backdrop { position:fixed; inset:0; background:#080b11b8; z-index:60; display:grid; place-items:center; padding:18px; }
+.nexogen-editor .modal-card { width:min(440px,100%); background:#222935; border:1px solid #3b4554; border-radius:12px; padding:24px; box-shadow:0 20px 70px #0009; }
+.nexogen-editor .modal-card h2 { font:25px 'DM Serif Display',serif; margin:0 0 8px; }
+.nexogen-editor .modal-card p { color:#9ba7b8; font-size:12px; line-height:1.6; margin:0 0 18px; }
+.nexogen-editor .modal-actions { display:flex; justify-content:flex-end; gap:9px; margin-top:22px; }
+.nexogen-editor .mobile-add-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.nexogen-editor .mobile-add-grid button { display:flex; align-items:center; gap:8px; min-height:42px; padding:10px; border:1px solid #394555; border-radius:7px; background:#1c232d; color:#dce6f4; font-size:12px; text-align:left; }
+.nexogen-editor .mobile-add-grid button:hover { border-color:#6b91c7; background:#252f3d; }
+
+@media (max-width:1000px) {
+  .nexogen-editor .editor-content { grid-template-columns:190px minmax(0,1fr); }
+  .nexogen-editor .right-panel { display:none; }
+  .nexogen-editor .right-panel.mobile-inspector-open { display:block; position:fixed; z-index:18; top:56px; right:0; bottom:56px; width:min(310px,92vw); min-height:0; overflow:auto; box-shadow:-16px 0 38px #06080d99; }
+}
+
+@media (max-width:720px) {
+  .nexogen-editor .editor-top { padding:0 9px; gap:6px; height:56px; }
+  .nexogen-editor .editor-top .brand { font-size:0; gap:0; }
+  .nexogen-editor .editor-top .brand-mark { font-size:15px; }
+  .nexogen-editor .editor-divider { margin:0; }
+  .nexogen-editor .editor-name { width:130px; font-size:11px; }
+  .nexogen-editor .save-status { font-size:0; }
+  .nexogen-editor .save-status::before { width:7px;height:7px; }
+  .nexogen-editor .toolbar-button { padding:8px; font-size:0; gap:0; }
+  .nexogen-editor .toolbar-button svg { width:16px; }
+  .nexogen-editor .editor-content { display:flex; flex-direction:column; }
+  .nexogen-editor .side-panel { min-height:0; border:0; background:transparent; }
+  .nexogen-editor .side-panel .panel-head { height:42px; }
+  .nexogen-editor .side-panel .panel-body { padding:7px 10px 12px; }
+  .nexogen-editor .layers-note,.nexogen-editor .add-section-menu { display:none; }
+  .nexogen-editor .layers-list { display:flex; overflow-x:auto; gap:6px; padding-bottom:2px; }
+  .nexogen-editor .layer-row { min-width:130px; margin:0; background:#202631; }
+  .nexogen-editor .layer-grip,.nexogen-editor .layer-mini { display:none; }
+  .nexogen-editor .layer-move-controls { display:flex; }
+  .nexogen-editor .layer-move-controls .icon-button { width:23px; height:28px; }
+  .nexogen-editor .canvas-area { order:2; padding:18px 10px 84px; }
+  .nexogen-editor .canvas-toolbar { margin-bottom:11px; }
+  .nexogen-editor .site-canvas { min-height:540px; }
+  .nexogen-editor .site-section { padding:33px 7%; }
+  .nexogen-editor .site-hero { min-height:245px; }
+  .nexogen-editor .site-feature { grid-template-columns:1fr; gap:18px; }
+  .nexogen-editor .feature-visual { height:120px; }
+  .nexogen-editor .mobile-bottom-bar { display:flex; position:fixed; bottom:0; left:0; right:0; z-index:15; justify-content:space-around; padding:8px 8px max(8px,env(safe-area-inset-bottom)); background:#151a22f5; border-top:1px solid #2c3441; }
+  .nexogen-editor .mobile-bottom-bar button { display:flex; align-items:center; flex-direction:column; gap:3px; border:0; background:transparent; color:#9aa7b9; font-size:9px; }
+  .nexogen-editor .mobile-add-backdrop { align-items:end; padding:0; }
+  .nexogen-editor .mobile-add-sheet { width:100%; border-radius:16px 16px 0 0; padding:24px 18px calc(20px + env(safe-area-inset-bottom)); }
+}

@@ -1,0 +1,349 @@
+NexoGen — Professional UI Redesign and Mobile Editor Upgrade
+
+Act as a senior product designer and frontend engineer specializing in professional visual website builders.
+
+I already have an existing NexoGen business landing page builder project. The current application has a dark editor interface, a page layers sidebar, section controls, desktop/tablet/mobile preview controls, a landing page canvas, JSON/HTML export buttons, and a Publish button.
+
+The application currently looks cramped and unfinished when opened on an Android phone. The editor appears to use a desktop-style three-panel layout even on mobile, causing the controls and canvas to become too small.
+
+Your task is to improve the existing application into a polished, professional visual website builder.
+
+CRITICAL RULES
+
+1. Inspect the existing project before changing code.
+2. Preserve all working features and existing project data.
+3. Do not replace the application with a static mockup.
+4. Do not delete or disable existing editor functionality.
+5. Do not create a separate disconnected editor.
+6. Keep the current framework and architecture unless a change is genuinely necessary.
+7. Implement real responsive behavior, not just smaller fonts.
+8. Verify all existing drag-and-drop, editing, export, save, undo/redo, and preview functionality after the redesign.
+9. Do not claim any feature works unless it has been tested.
+10. Prioritize usability on Android mobile browsers.
+
+1. DESIGN DIRECTION
+
+Create a premium, minimal, professional SaaS interface inspired by modern visual website builders.
+
+Use:
+
+- Background: #0B0B0F
+- Main panels: #13131A
+- Elevated cards: #1A1A22
+- Accent: #4F6BFF
+- Main text: #F5F5F7
+- Secondary text: #A1A1AA
+- Subtle borders: dark neutral
+- Consistent spacing and typography
+- Clean Lucide icons
+- Restrained transitions
+- Clear hover, active, selected, disabled, loading, and focus states
+
+Avoid excessive gradients, oversized icons, unnecessary decoration, and crowded toolbars.
+
+The editor should feel like a real professional software product.
+
+2. FIX THE MOBILE LAYOUT FIRST
+
+Detect the available viewport width and render an appropriate editor layout.
+
+Desktop
+
+For larger screens:
+
+- Keep the top toolbar.
+- Show the left panel for Elements and Layers.
+- Show the main website canvas in the center.
+- Show the Properties panel on the right when an element is selected.
+- Allow panels to collapse and expand.
+- Give the canvas most of the available space.
+
+Use responsive breakpoints based on available width, not device user-agent detection alone.
+
+Tablet
+
+For medium-sized screens:
+
+- Collapse panels when necessary.
+- Use a toggleable left sidebar.
+- Use a drawer or overlay for properties.
+- Keep the website preview large enough to inspect.
+
+Mobile
+
+For narrow screens:
+
+- Do not display three narrow columns side by side.
+- Use a compact top toolbar.
+- Show the canvas as the primary workspace.
+- Move Elements, Sections, Layers, and Properties into touch-friendly bottom sheets or drawers.
+- Use a clear bottom toolbar with actions such as Elements, Layers, Edit, Preview, and More.
+- Ensure the canvas can be viewed at a useful scale.
+- Keep essential controls reachable with one hand.
+- Use a full-screen or near-full-screen canvas mode.
+- Allow users to open and close panels without losing the current selection.
+- Respect mobile safe areas and the virtual keyboard.
+- Prevent horizontal overflow of the application itself.
+
+Do not simply shrink the desktop interface to fit a phone.
+
+3. IMPROVE THE TOP TOOLBAR
+
+Create a compact, well-organized toolbar.
+
+Left side:
+
+- Back to projects
+- Project name
+- Save status
+
+Center or responsive overflow menu:
+
+- Undo
+- Redo
+- Desktop preview
+- Tablet preview
+- Mobile preview
+- Zoom controls
+
+Right side:
+
+- Export
+- Publish
+
+On mobile, prioritize the most important actions and move secondary actions into an accessible More menu.
+
+Use real existing actions. Do not introduce decorative buttons that do nothing.
+
+Show saving, saved, and save-failed states only when they accurately reflect the application's actual persistence behavior.
+
+4. IMPROVE THE CANVAS
+
+Make the generated website preview the visual focus of the editor.
+
+Implement:
+
+- Fit-to-screen control
+- Zoom in and zoom out where supported
+- Current zoom percentage
+- Desktop, tablet, and mobile viewport presets
+- Clear selected-element outlines
+- Visible drag insertion indicators
+- Empty-state guidance
+- Consistent canvas spacing
+- Appropriate preview background
+- A clear distinction between the editor interface and the generated website
+
+Ensure zooming does not corrupt the underlying layout or element positions.
+
+Do not scale the entire application UI when the user changes the website canvas zoom.
+
+Preserve the generated website's actual responsive CSS.
+
+When editing on mobile, allow the user to switch between editing controls and an uncluttered website preview.
+
+5. REDESIGN THE LEFT PANEL
+
+Organize the existing functionality into clearly labelled tabs:
+
+- Elements
+- Sections
+- Layers
+
+Elements
+
+Show clean, categorized items such as:
+
+- Heading
+- Text
+- Image
+- Button
+- Container
+- Columns
+- Divider
+- Spacer
+- Icon
+- Video
+- Contact form
+
+Sections
+
+Show visually clear section presets:
+
+- Navigation
+- Hero
+- Features
+- About
+- Gallery
+- Testimonials
+- Pricing
+- FAQ
+- Contact
+- Footer
+
+Layers
+
+Show the real page hierarchy.
+
+Support existing operations such as:
+
+- Selecting elements
+- Reordering
+- Hiding/showing
+- Locking
+- Duplicating
+- Deleting
+
+Use appropriate touch interactions on mobile. Do not rely exclusively on hover behavior or tiny drag handles.
+
+Keep existing drag-and-drop behavior working.
+
+6. REDESIGN THE PROPERTIES PANEL
+
+When an element is selected, show a clean contextual properties panel.
+
+Organize controls into groups such as:
+
+- Content
+- Typography
+- Layout
+- Colors
+- Background
+- Borders
+- Spacing
+- Responsive settings
+
+Show only controls relevant to the selected element.
+
+Use:
+
+- Properly labelled fields
+- Color pickers
+- Dropdowns
+- Number inputs
+- Sliders where useful
+- Clear section headings
+- Reset controls where supported
+
+Every control must update the actual selected element and the live canvas.
+
+On mobile, show properties in a bottom sheet or full-screen editing panel. Preserve the selected element when opening or closing the panel.
+
+7. IMPROVE VISUAL HIERARCHY
+
+Fix the cramped appearance of the current interface.
+
+- Increase the usable canvas area.
+- Use consistent panel widths.
+- Prevent labels and controls from being clipped.
+- Use readable text sizes.
+- Improve contrast for secondary text.
+- Use consistent spacing.
+- Add tooltips where appropriate on desktop.
+- Add accessible labels for icon-only buttons.
+- Make the selected section and current viewport obvious.
+- Avoid large empty panel areas when they can be used more effectively.
+
+Do not make all elements larger indiscriminately. Maintain a compact professional editor with a clear hierarchy.
+
+8. KEEP THE GENERATED WEBSITE INDEPENDENT
+
+The website inside the canvas must retain its own design and colors.
+
+Do not apply NexoGen's dark editor theme to the customer's landing page.
+
+Ensure generated websites continue to support:
+
+- Different color palettes
+- Different fonts
+- Full-width sections
+- Responsive layouts
+- Background images
+- Buttons and links
+- Existing content and section ordering
+
+The redesign must not unintentionally change the customer's actual website design.
+
+9. INTERACTION REQUIREMENTS
+
+Verify the following:
+
+- Selecting an element opens the correct properties.
+- Editing text updates the canvas.
+- Editing styles updates the canvas.
+- Adding sections works.
+- Dragging sections works.
+- Reordering works.
+- Undo and redo work.
+- Preview modes work.
+- Export still works.
+- Publishing behavior remains truthful.
+- Panels open and close correctly on mobile.
+- Opening the keyboard does not make important controls inaccessible.
+- Switching panels does not lose unsaved changes or selection state.
+
+Preserve all current working functionality.
+
+10. ACCESSIBILITY AND PERFORMANCE
+
+- Use semantic buttons and inputs.
+- Add accessible names to icon-only buttons.
+- Provide visible focus states.
+- Support keyboard interactions where appropriate.
+- Use touch targets suitable for mobile.
+- Avoid unnecessary rerenders.
+- Avoid adding large dependencies unless necessary.
+- Clean up event listeners and observers.
+- Avoid horizontal page overflow.
+- Respect reduced-motion preferences.
+
+11. TESTING
+
+After implementation, test at representative viewport widths:
+
+- 360px mobile
+- 390px mobile
+- 768px tablet
+- 1024px desktop
+- 1440px desktop
+
+Check for:
+
+- Overlapping panels
+- Clipped labels
+- Horizontal overflow
+- Unusable drag handles
+- Broken canvas scaling
+- Misaligned toolbars
+- Lost selections
+- Broken existing actions
+- Console errors
+- Build errors
+
+Use browser testing tools available in the project environment when possible. If a specific interaction cannot be tested automatically, inspect it manually and report the limitation honestly.
+
+12. EXECUTION PLAN
+
+First inspect the current code and identify the components responsible for:
+
+- The top toolbar
+- The page layers sidebar
+- The section library
+- The canvas
+- The properties panel
+- Responsive layout
+
+Then implement the redesign in small, safe steps.
+
+Run the application and fix any errors introduced by the changes.
+
+Do not stop after producing a design plan. Implement the changes in the existing project.
+
+At the end, summarize:
+
+1. What was changed.
+2. Which features were verified to work.
+3. Any remaining limitations.
+4. Any actions required from me.
+
+The final result must be a genuinely usable, professional, mobile-friendly NexoGen editor, not merely a prettier screenshot.
