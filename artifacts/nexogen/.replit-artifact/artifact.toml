@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "NexoGen"
+description = "An AI-powered business landing page builder. Create a starter page from local demos, customize sections in a visual editor, save projects locally, and export page files."
+version = "1.0.0"
+id = "artifacts/nexogen"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24942
+
+[services.development]
+run = "pnpm --filter @workspace/nexogen run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/nexogen", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/nexogen/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24942"
+BASE_PATH = "/"

@@ -1,6 +1,6 @@
-# [Project name]
+# NexoGen
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+NexoGen is a visual business landing-page builder. The current Phase 1 is a local-first demo: users can start from a template, edit and reorder sections, save drafts in the browser, and export HTML or JSON. AI generation, account-based storage, and hosting are not connected.
 
 ## Run & Operate
 
@@ -22,15 +22,21 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/nexogen/src/App.tsx` — NexoGen routes, templates, structured page model, local project management, editor, and exports
+- `artifacts/nexogen/src/index.css` — editor shell, responsive layouts, and customer-page preview styles
+- `artifacts/api-server/` — shared API service; NexoGen's current Phase 1 does not call it
+- `lib/api-spec/openapi.yaml` — shared API contract source of truth
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Starter projects use validated structured data and approved React sections; do not execute generated JavaScript.
+- Phase 1 stores drafts in browser local storage and labels that limitation in the interface.
+- HTML and JSON are client-side exports. Publishing is intentionally a setup-needed state until a real host is connected.
+- Demo templates are not AI-generated. Keep AI generation and hosting claims explicit until those services are implemented.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+The longer-term product goal is to let business owners describe a landing page, generate a structured first draft with AI, edit it visually, and publish or export it without writing code.
 
 ## User preferences
 
@@ -38,7 +44,8 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Local projects exist only in the browser that created them and may be removed when browser storage is cleared.
+- The API server and database scaffold exist in the workspace but are not part of the NexoGen Phase 1 project flow.
 
 ## Pointers
 

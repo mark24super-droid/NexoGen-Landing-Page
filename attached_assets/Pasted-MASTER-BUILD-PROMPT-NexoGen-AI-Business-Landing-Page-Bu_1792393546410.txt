@@ -1,0 +1,945 @@
+MASTER BUILD PROMPT — NexoGen AI Business Landing Page Builder
+
+1. YOUR ROLE
+
+Act as a senior full-stack engineer, AI product architect, UI/UX designer, and visual website-builder specialist.
+
+Build a functional, production-oriented web application named NexoGen.
+
+NexoGen is an AI-powered visual website builder designed specifically for generating and editing professional business landing pages.
+
+The application must combine:
+
+1. AI-powered landing page generation.
+2. A professional drag-and-drop visual editor.
+3. Real-time website preview.
+4. Direct visual editing of page elements.
+5. Responsive mobile and desktop layouts.
+6. AI-assisted editing.
+7. Project saving and loading.
+8. Exporting and publishing capabilities.
+
+Do not create a generic ChatGPT clone, a static dashboard, or a non-functional design prototype.
+
+The main product experience must focus on creating professional business landing pages without requiring users to write code.
+
+---
+
+2. IMPORTANT DEVELOPMENT RULES
+
+Before writing any code:
+
+1. Inspect the existing Replit project and identify its framework, package manager, directory structure, dependencies, routes, and existing functionality.
+2. Reuse working components and configurations whenever possible.
+3. Do not unnecessarily replace existing working files.
+4. If the project is empty, initialize a suitable React + TypeScript application.
+5. Make incremental changes and test each major feature.
+6. Never claim a feature works unless it has been implemented and tested.
+7. Do not use fake buttons, decorative controls, placeholder editor interactions, or simulated successful publishing.
+8. Do not rewrite the entire application when a smaller change is sufficient.
+9. Keep API keys and secrets exclusively on the server.
+10. Ensure the application runs using Replit's actual configured development command and port.
+
+If a requirement is too large to complete in one pass, first build a working end-to-end MVP, then implement the remaining features in prioritized phases.
+
+---
+
+3. PRODUCT POSITIONING
+
+Product name: NexoGen
+
+Product category: AI Business Landing Page Builder
+
+Target users:
+
+- Gyms and fitness studios
+- Restaurants and cafes
+- Salons and spas
+- Coaching institutes
+- Freelancers and consultants
+- Digital marketing agencies
+- Real estate agents
+- Local service providers
+- SaaS startups
+- Small and medium-sized businesses
+
+Core promise:
+
+"Describe your business. Generate a professional landing page. Customize everything visually. Publish when you're ready."
+
+The output must look like a professionally designed business website, not a generic AI-generated template.
+
+---
+
+4. DESIGN SYSTEM
+
+Create a polished, modern, minimal, professional interface.
+
+Use this visual direction:
+
+- Application background: #0B0B0F
+- Panel background: #13131A
+- Elevated surfaces: #1A1A22
+- Primary accent: #4F6BFF
+- Primary text: #F5F5F7
+- Secondary text: #A1A1AA
+- Borders: subtle dark neutral borders
+- Border radius: 8–12px
+- Typography: Inter or a similar modern sans-serif
+- Use consistent spacing and typography scales.
+- Avoid excessive gradients, neon colors, glassmorphism, and unnecessary animations.
+
+The generated customer websites must have their own independent design system. Do not force every generated website to use NexoGen's dark theme.
+
+The generated landing pages should adapt their colors, fonts, layouts, and imagery to the customer's business and chosen style.
+
+Build a responsive interface that works on Android phones, tablets, and desktop browsers.
+
+---
+
+5. APPLICATION ROUTES
+
+Implement these routes:
+
+- "/" — Homepage and AI generation form
+- "/workspace/:projectId" — Visual website editor
+- "/projects" — Saved projects
+- "/templates" — Landing page templates
+- "/settings" — Application settings
+
+Use proper route handling and clear empty, loading, error, and success states.
+
+Unauthenticated users should be able to try the basic generator if feasible. Add authentication when needed for persistent accounts and project ownership.
+
+---
+
+6. HOMEPAGE
+
+Create a simple, professional homepage.
+
+Hero heading:
+
+"Build Business Landing Pages with AI"
+
+Subheading:
+
+"Describe your business and create a professional landing page you can customize visually, without writing code."
+
+The homepage should contain:
+
+A. AI prompt input
+
+Provide a large text area where users can describe the website they want.
+
+Example:
+
+"Create a premium landing page for a fitness gym in Delhi. Include membership plans, trainer profiles, transformation testimonials, a class schedule, and a WhatsApp enquiry button."
+
+B. Business type selector
+
+Include:
+
+- Gym
+- Restaurant
+- Salon
+- Coaching
+- Agency
+- Portfolio
+- Real Estate
+- SaaS
+- Other
+
+C. Optional configuration
+
+Allow users to specify:
+
+- Business name
+- Industry
+- Target audience
+- Primary website goal
+- Preferred color palette
+- Design style
+- Contact details
+- Location
+- Preferred page sections
+
+D. Design style presets
+
+Provide styles such as:
+
+- Minimal
+- Premium
+- Modern corporate
+- Bold and energetic
+- Elegant
+- Creative
+- Friendly local business
+
+E. Generate button
+
+Button text: "Generate Landing Page"
+
+On click:
+
+1. Validate the input.
+2. Display a generation progress state.
+3. Send the request to the backend.
+4. Generate a structured landing page.
+5. Save the project when possible.
+6. Open the workspace with the generated page.
+
+Prevent accidental duplicate submissions.
+
+F. Example prompts
+
+Provide clickable examples for gyms, restaurants, agencies, salons, and SaaS businesses.
+
+Clicking an example should populate the prompt input.
+
+---
+
+7. VISUAL EDITOR LAYOUT
+
+The workspace is the core product.
+
+Build a professional visual editor with three primary areas.
+
+LEFT SIDEBAR — ELEMENTS AND LAYERS
+
+Provide tabs for:
+
+1. Elements
+2. Sections
+3. Layers
+
+Elements tab
+
+Include reusable elements:
+
+- Heading
+- Paragraph
+- Image
+- Button
+- Icon
+- Video embed
+- Divider
+- Spacer
+- Container
+- Columns
+- List
+- Badge
+- Testimonial card
+- Pricing card
+- Feature card
+- Contact form
+- FAQ item
+- Logo strip
+
+Users must be able to drag available elements into supported drop zones in the page canvas.
+
+Where an element requires a parent container or a specific layout, show a clear drop indicator and only allow valid placements.
+
+Sections tab
+
+Include complete, reusable business sections:
+
+- Navigation bar
+- Hero
+- Features
+- Services
+- About
+- Benefits
+- Statistics
+- Gallery
+- Team
+- Testimonials
+- Pricing
+- FAQ
+- Lead capture form
+- Contact
+- Location
+- Footer
+- Call to action
+
+Provide multiple layout variations for major sections.
+
+Layers tab
+
+Display the page's element hierarchy.
+
+Allow users to:
+
+- Select an element.
+- Rename a layer.
+- Reorder compatible siblings.
+- Hide or show an element.
+- Lock an element against accidental editing.
+- Duplicate an element.
+- Delete an element.
+
+Selecting a layer must select the corresponding element on the canvas.
+
+CENTER AREA — LIVE CANVAS
+
+Display the actual landing page being edited.
+
+Required interactions:
+
+- Click to select elements.
+- Show a visible selection outline.
+- Show hover outlines.
+- Display drag insertion indicators.
+- Drag sections to reorder them.
+- Drag supported elements into containers.
+- Edit text inline.
+- Resize supported elements where appropriate.
+- Duplicate elements.
+- Delete elements.
+- Move elements between valid containers.
+- Undo and redo changes.
+- Support keyboard shortcuts where practical.
+
+Do not implement unrestricted absolute positioning as the default layout system.
+
+Use responsive layout primitives such as:
+
+- Flexbox
+- CSS Grid
+- Containers
+- Columns
+- Stacks
+- Gaps
+- Alignment
+- Padding and margins
+
+Preserve the visual hierarchy and responsive behavior of the page.
+
+RIGHT SIDEBAR — PROPERTIES PANEL
+
+Show controls based on the currently selected element.
+
+For text elements:
+
+- Text content
+- Font family
+- Font size
+- Font weight
+- Text color
+- Alignment
+- Line height
+- Letter spacing
+
+For buttons:
+
+- Label
+- Destination URL
+- Background color
+- Text color
+- Padding
+- Border radius
+- Size
+- Alignment
+
+For images:
+
+- Image source
+- Alt text
+- Fit mode
+- Position
+- Aspect ratio
+- Border radius
+
+For sections and containers:
+
+- Background color
+- Background image
+- Width
+- Maximum width
+- Minimum height
+- Padding
+- Margin
+- Gap
+- Border
+- Border radius
+- Shadow
+- Alignment
+- Layout direction
+- Number of columns
+- Responsive settings
+
+Changes must update the canvas immediately.
+
+Use color pickers, numeric inputs, dropdowns, sliders, and appropriate controls.
+
+Validate values to prevent broken layouts.
+
+---
+
+8. DRAG-AND-DROP ENGINE
+
+Use a maintained React-compatible drag-and-drop solution, such as dnd-kit, or a suitable visual-editor framework.
+
+Evaluate Puck as a possible foundation for the structured visual editor before building a complete custom editor from scratch.
+
+The drag-and-drop system must support:
+
+1. Dragging sections from the sidebar into the canvas.
+2. Reordering existing sections.
+3. Adding elements to valid containers.
+4. Reordering elements within containers.
+5. Moving elements between compatible containers.
+6. Visual drop indicators.
+7. Clear drag handles where appropriate.
+8. Touch-friendly interactions on mobile.
+9. Correct selection and focus behavior.
+10. Undo and redo integration.
+
+Use stable IDs for every element and section.
+
+Never identify elements solely by their array position.
+
+Prevent invalid nesting, duplicate IDs, accidental deletion, and corrupted layouts.
+
+If using Puck or another editor framework, customize its UI to match NexoGen's design system.
+
+Do not build a fake drag-and-drop experience using buttons that merely simulate movement.
+
+---
+
+9. STRUCTURED PAGE DATA MODEL
+
+Represent each landing page as structured, validated data.
+
+Use a schema such as Zod to validate AI-generated page data before rendering.
+
+A page should contain:
+
+- Project metadata
+- Business information
+- Global design tokens
+- Page settings
+- Responsive configuration
+- An ordered list of sections
+- Nested elements
+- Stable element IDs
+- Section-specific properties
+
+A simplified conceptual example:
+
+{
+"version": 1,
+"project": {
+"name": "Example Gym",
+"businessType": "gym"
+},
+"theme": {
+"primaryColor": "#4F6BFF",
+"fontFamily": "Inter"
+},
+"sections": [
+{
+"id": "hero-unique-id",
+"type": "hero",
+"props": {
+"heading": "Build Your Strongest Self",
+"description": "Training designed around your goals.",
+"buttonLabel": "Join Today"
+},
+"children": []
+}
+]
+}
+
+This example is illustrative, not a complete schema.
+
+Implement the real schema with strict validation, defaults, versioning, and safe error handling.
+
+Use a renderer that maps approved component types to React components.
+
+Do not directly execute arbitrary AI-generated JavaScript inside the editor.
+
+---
+
+10. AI LANDING PAGE GENERATION
+
+Create a server-side AI generation service.
+
+Separate the workflow into these stages:
+
+Stage 1: Requirement analysis
+
+Extract:
+
+- Business type
+- Target audience
+- Main conversion goal
+- Brand personality
+- Content requirements
+- Required sections
+- Preferred design style
+- Contact actions
+
+Stage 2: Page planning
+
+Choose a suitable page structure.
+
+For example, a gym might need:
+
+- Navigation
+- Hero
+- Membership benefits
+- Training programs
+- Trainers
+- Testimonials
+- Pricing
+- FAQ
+- Contact CTA
+- Footer
+
+A restaurant might need:
+
+- Hero
+- Menu highlights
+- Food gallery
+- About
+- Reviews
+- Location
+- Opening hours
+- Reservations or WhatsApp contact
+
+Do not force every industry to use the same section order.
+
+Stage 3: Design planning
+
+Generate a coherent design system:
+
+- Color palette
+- Typography
+- Section spacing
+- Content width
+- Button style
+- Card style
+- Image treatment
+- Visual hierarchy
+
+Stage 4: Structured content generation
+
+Generate the validated page data, not unrestricted executable code.
+
+Stage 5: Validation
+
+Validate:
+
+- Required fields
+- Supported component types
+- Unique IDs
+- Valid colors and sizes
+- Safe URLs
+- Valid nesting
+- Required content
+- Reasonable page complexity
+
+Stage 6: Rendering
+
+Render the page through approved React components.
+
+Stage 7: Quality checks
+
+Check for:
+
+- Missing content
+- Broken image sources
+- Empty sections
+- Invalid links
+- Horizontal overflow
+- Poor mobile layout
+- Inaccessible contrast
+- Missing alt text
+
+Retry or repair invalid output within reasonable limits.
+
+Display meaningful errors when generation fails.
+
+---
+
+11. AI PROVIDER INTEGRATION
+
+Use a configurable AI provider.
+
+Groq may be used if a compatible model is available for the required structured output.
+
+Requirements:
+
+- Read API credentials from server-side environment variables.
+- Never expose secrets to frontend code.
+- Add request timeouts and error handling.
+- Validate all model output.
+- Limit prompt and response sizes.
+- Add reasonable generation limits.
+- Handle rate limits.
+- Show useful error messages.
+- Keep provider integration isolated from UI components.
+- Support changing the model without rewriting the application.
+
+If the API key is unavailable, provide a clearly labelled demo mode using local example templates.
+
+Demo mode must not pretend that real AI generation occurred.
+
+Do not hardcode API keys.
+
+---
+
+12. AI-ASSISTED VISUAL EDITING
+
+Add an AI assistant panel inside the workspace.
+
+Users should be able to select a section and issue instructions such as:
+
+- "Make this hero section more premium."
+- "Rewrite this text for Indian customers."
+- "Change the CTA to WhatsApp enquiry."
+- "Make these pricing cards easier to compare."
+- "Improve the mobile layout."
+- "Add a testimonial section below the features."
+- "Change the visual style to minimal and elegant."
+
+When a section is selected:
+
+1. Send the selected component data and relevant page context to the backend.
+2. Generate a proposed structured update.
+3. Validate the update.
+4. Show a preview or proposed change.
+5. Apply the update only when valid.
+6. Record the change in undo history.
+
+Do not allow the AI to silently replace unrelated page sections.
+
+Support page-level instructions only when the user explicitly requests broader changes.
+
+Preserve manually edited content unless the requested change requires modifying it.
+
+---
+
+13. RESPONSIVE EDITING
+
+Provide viewport controls:
+
+- Desktop
+- Tablet
+- Mobile
+
+Allow users to preview the page at different viewport sizes.
+
+Responsive requirements:
+
+- No unintended horizontal scrolling.
+- Navigation adapts to small screens.
+- Columns stack appropriately.
+- Buttons remain usable.
+- Typography scales sensibly.
+- Images maintain suitable proportions.
+- Forms remain accessible.
+
+Support responsive overrides for relevant properties, such as font size, padding, and column count.
+
+Make clear which settings apply globally and which apply only to a selected viewport.
+
+Test generated pages at multiple screen sizes.
+
+---
+
+14. UNDO, REDO, AUTOSAVE, AND PROJECT MANAGEMENT
+
+Implement:
+
+Undo and redo
+
+- Store meaningful editor state changes.
+- Support multiple undo and redo operations.
+- Group rapid typing into sensible history entries.
+- Prevent history from growing without limits.
+
+Autosave
+
+- Debounce frequent edits.
+- Display saving, saved, and failed-to-save states.
+- Prevent stale requests from overwriting newer changes.
+- Recover unsaved edits when practical.
+
+Project management
+
+- Create a new project.
+- Open a saved project.
+- Rename a project.
+- Duplicate a project.
+- Delete a project with confirmation.
+- Display recently edited projects.
+
+Persist projects in a database when configured.
+
+If persistent storage is unavailable, implement a clearly documented local demo mode without claiming that projects are stored in a cloud database.
+
+---
+
+15. IMAGE HANDLING
+
+Support:
+
+- Uploading images.
+- Selecting a replacement image.
+- Changing image fit and position.
+- Editing alt text.
+- Previewing images in the canvas.
+
+Use a supported image storage service for persistent uploads.
+
+If no storage service is configured, provide a clearly labelled local preview workflow.
+
+Do not invent image URLs or assume that an image exists.
+
+If AI image generation is unavailable, use a curated set of available images or neutral placeholders.
+
+Avoid downloading copyrighted assets without permission.
+
+---
+
+16. EXPORTING AND PUBLISHING
+
+Implement a reliable publishing workflow.
+
+Export
+
+Provide:
+
+- Downloadable HTML/CSS where supported.
+- Project data export as JSON.
+- A documented export structure.
+- A clear indication of any limitations.
+
+Exported HTML should include semantic markup, responsive styling, and the required assets or valid asset references.
+
+Do not claim that a page is fully portable if it depends on an unavailable backend.
+
+Publishing
+
+Provide a Publish button.
+
+A successful publishing workflow must:
+
+1. Validate the page.
+2. Generate the publishable output.
+3. Upload or deploy it using a configured hosting provider.
+4. Verify that deployment succeeded.
+5. Return the actual published URL.
+6. Show a clear success or error state.
+
+Do not show a fake live URL or report success before the hosting provider confirms deployment.
+
+If hosting is not configured, show a working preview and a clear publishing setup message.
+
+Design the publishing architecture so a hosting provider can be added later.
+
+---
+
+17. SECURITY
+
+Treat all user content and AI-generated data as untrusted.
+
+Implement:
+
+- Server-side API key protection.
+- Input validation.
+- Output schema validation.
+- Safe URL handling.
+- Protection against script injection.
+- Sanitization of user-generated HTML where applicable.
+- Authentication and project ownership checks when accounts are enabled.
+- Server-side authorization for saving, editing, exporting, and publishing.
+- Request size limits.
+- Rate limiting where practical.
+- Safe error messages that do not expose secrets.
+- Secure handling of file uploads.
+
+Do not use eval or execute arbitrary model-generated scripts.
+
+Do not allow one user to access another user's private projects.
+
+Never expose service-role credentials or privileged database keys to the browser.
+
+---
+
+18. ACCESSIBILITY AND USABILITY
+
+Ensure:
+
+- Keyboard-accessible controls.
+- Visible focus indicators.
+- Accessible labels.
+- Appropriate contrast.
+- Useful empty states.
+- Clear error messages.
+- Loading indicators.
+- Confirmation before destructive operations.
+- Touch-friendly controls.
+- Usable editor panels on small screens.
+
+Because many users may access NexoGen through a phone, provide a mobile-friendly editor experience.
+
+On narrow screens, use collapsible side panels, a dedicated canvas mode, and accessible bottom sheets where appropriate.
+
+Do not simply shrink the desktop editor until it becomes unusable.
+
+---
+
+19. PERFORMANCE
+
+Optimize for a practical MVP.
+
+- Avoid unnecessary full-page rerenders during editing.
+- Use stable React keys.
+- Keep editor state predictable.
+- Lazy-load heavy editor components where appropriate.
+- Debounce autosave and expensive operations.
+- Avoid excessive AI API calls.
+- Use sensible image sizes.
+- Limit generated page complexity.
+- Handle slow network connections gracefully.
+
+Do not introduce complex infrastructure without a demonstrated need.
+
+---
+
+20. TESTING REQUIREMENTS
+
+Verify these workflows:
+
+1. Homepage loads successfully.
+2. User enters a business description.
+3. User generates a landing page using a configured AI provider.
+4. Generated data passes schema validation.
+5. The page renders in the canvas.
+6. User adds a section.
+7. User drags and reorders sections.
+8. User edits text directly.
+9. User changes colors and spacing.
+10. User duplicates and deletes elements.
+11. Undo and redo restore the correct state.
+12. Mobile preview works.
+13. Autosave persists project changes when storage is configured.
+14. Project reload restores the saved page.
+15. Export produces a usable file.
+16. Publishing returns a real URL when hosting is configured.
+17. Invalid AI responses are handled safely.
+18. Missing API keys produce a clear error or demo-mode message.
+19. No API secrets appear in browser bundles or network responses.
+20. The application works in Replit's development environment.
+
+Fix errors discovered during testing.
+
+Do not mark a test as passed merely because the related button exists.
+
+---
+
+21. IMPLEMENTATION PHASES
+
+Build in this order.
+
+Phase 1 — Working visual editor
+
+- Application shell.
+- Homepage.
+- Workspace layout.
+- Structured page schema.
+- Section library.
+- Functional drag-and-drop.
+- Inline text editing.
+- Properties panel.
+- Live canvas preview.
+- Undo and redo.
+- Mobile and desktop viewport preview.
+- Several polished starter templates.
+
+Use deterministic local template data so the editor can be tested without an API key.
+
+Phase 2 — AI generation
+
+- Backend AI endpoint.
+- Requirement analysis.
+- Structured page generation.
+- Schema validation.
+- Industry-specific layouts.
+- Error handling.
+- Generation progress UI.
+
+Phase 3 — AI editing and project persistence
+
+- Selected-section AI editing.
+- Change preview.
+- Autosave.
+- Project list.
+- Project loading.
+- Rename, duplicate, and delete.
+
+Phase 4 — Export and publishing
+
+- HTML/CSS export.
+- JSON export.
+- Hosting integration.
+- Actual deployment verification.
+- Published URL management.
+
+Phase 5 — Production hardening
+
+- Authentication.
+- Usage limits.
+- Rate limiting.
+- Security review.
+- Accessibility review.
+- Responsive testing.
+- Performance optimization.
+
+---
+
+22. DEFINITION OF DONE
+
+The MVP is complete only when a user can:
+
+1. Open NexoGen.
+2. Select a business type.
+3. Generate a landing page using either a working AI integration or a clearly labelled demo template.
+4. Open the page in the visual editor.
+5. Drag sections to reorder them.
+6. Add supported elements.
+7. Edit text and styling visually.
+8. See changes immediately.
+9. Undo and redo changes.
+10. Preview the page on mobile and desktop.
+11. Save and reopen the project when persistence is configured.
+12. Export the project successfully.
+13. Publish the page if a real hosting integration is configured.
+
+A beautiful interface without working interactions does not satisfy this requirement.
+
+---
+
+23. FINAL INSTRUCTIONS
+
+Start by inspecting the current repository.
+
+Then provide a concise implementation plan based on the actual project structure.
+
+Implement Phase 1 first, keeping the project runnable.
+
+After implementation:
+
+- Run the application.
+- Run available checks and tests.
+- Fix compile errors and runtime errors.
+- Verify the main editor interactions.
+- Report what is genuinely working.
+- List any integrations that still require configuration.
+- Identify the next highest-priority task.
+
+Do not stop after generating a plan or displaying a static mockup.
+
+Build a functional, maintainable foundation for NexoGen, prioritizing editor reliability, excellent visual output, responsive behavior, and a clear path to real AI generation and publishing.
