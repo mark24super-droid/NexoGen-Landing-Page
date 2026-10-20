@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 type SectionType = 'navigation' | 'hero' | 'about' | 'features' | 'gallery' | 'testimonial' | 'pricing' | 'faq' | 'contact' | 'footer';
 type BlockType = 'heading' | 'text' | 'image' | 'button' | 'container' | 'columns' | 'divider' | 'spacer' | 'icon' | 'video' | 'contact-form';
-type BlockElement = { id: string; type: BlockType; content: string; secondary?: string; imageUrl?: string };
+type BlockElement = { id: string; type: BlockType; content: string; secondary?: string; imageUrl?: string; visible?: boolean; locked?: boolean; fontSize?: number; color?: string; backgroundColor?: string; padding?: number };
 type Section = { id: string; type: SectionType; title: string; body: string; imageUrl?: string; visible: boolean; locked: boolean; padding: number; elements?: BlockElement[] };
 type Theme = { primaryColor: string; backgroundColor: string; textColor: string };
 type Project = { id: string; name: string; businessType: string; prompt: string; templateId: string; theme: Theme; sections: Section[]; updatedAt: string };
@@ -35,6 +35,11 @@ const SectionSchema = z.object({
   elements: z.array(z.object({
     id: z.string().min(1), type: z.enum(['heading', 'text', 'image', 'button', 'container', 'columns', 'divider', 'spacer', 'icon', 'video', 'contact-form']),
     content: z.string().max(3000), secondary: z.string().max(1000).optional(), imageUrl: z.string().max(2048).optional(),
+    visible: z.boolean().optional(), locked: z.boolean().optional(),
+    fontSize: z.number().int().min(8).max(96).optional(),
+    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+    padding: z.number().int().min(0).max(100).optional(),
   })).max(60).optional(),
 });
 const ProjectSchema = z.object({
@@ -55,6 +60,11 @@ const ProjectSchema = z.object({
   project.sections.forEach((section, index) => {
     if (ids.has(section.id)) context.addIssue({ code: 'custom', message: 'Section IDs must be unique.', path: ['sections', index, 'id'] });
     ids.add(section.id);
+    const elementIds = new Set<string>();
+    section.elements?.forEach((element, elementIndex) => {
+      if (elementIds.has(element.id)) context.addIssue({ code: 'custom', message: 'Element IDs must be unique within a section.', path: ['sections', index, 'elements', elementIndex, 'id'] });
+      elementIds.add(element.id);
+    });
   });
 });
 const ProjectListSchema = z.array(ProjectSchema).max(100);
@@ -282,18 +292,27 @@ function SettingsPage() {
 function renderHtml(project: Project) {
   const sections = project.sections.filter(s => s.visible).map(section => {
     const title = escapeHtml(section.title), body = escapeHtml(section.body);
-    const blocks = (section.elements || []).map(block => {
+    const blocks = (section.elements || []).filter(block => block.visible !== false).map(block => {
       const content = escapeHtml(block.content), secondary = escapeHtml(block.secondary || '');
-      if (block.type === 'heading') return `<h2>${content}</h2>`;
-      if (block.type === 'text') return `<p>${content}</p>`;
-      if (block.type === 'image') return `<img src="${escapeHtml(block.imageUrl || '')}" alt="${content}" style="max-width:100%;height:auto">`;
-      if (block.type === 'button') return `<a class="cta" href="${escapeHtml(block.secondary || '#contact')}">${content}</a>`;
-      if (block.type === 'divider') return '<hr>';
-      if (block.type === 'spacer') return '<div style="height:40px"></div>';
-      if (block.type === 'columns') return `<div class="features"><p>${content}</p><p>${secondary}</p></div>`;
-      if (block.type === 'video') return `<a href="${escapeHtml(block.secondary || '')}">${content || 'Watch video'}</a>`;
-      if (block.type === 'contact-form') return '<form><label>Name <input name="name"></label><label>Email <input name="email" type="email"></label><button type="submit">Send</button></form>';
-      return `<div>${content}</div>`;
+      const declarations = [
+        block.fontSize ? `font-size:${block.fontSize}px` : '',
+        block.color ? `color:${block.color}` : '',
+        block.backgroundColor ? `background-color:${block.backgroundColor}` : '',
+        block.padding !== undefined ? `padding:${block.padding}px` : '',
+      ].filter(Boolean).join(';');
+      const style = declarations ? ` style="${declarations}"` : '';
+      if (block.type === 'heading') return `<h2${style}>${content}</h2>`;
+      if (block.type === 'text') return `<p${style}>${content}</p>`;
+      if (block.type === 'image') return block.imageUrl
+        ? `<img src="${escapeHtml(block.imageUrl)}" alt="${content}" style="max-width:100%;height:auto;${declarations}">`
+        : `<div class="image-note"${style}>${content} · Add an image URL in your editor</div>`;
+      if (block.type === 'button') return `<a class="cta"${style} href="${escapeHtml(block.secondary || '#contact')}">${content}</a>`;
+      if (block.type === 'divider') return `<hr${style}>`;
+      if (block.type === 'spacer') return `<div aria-hidden="true" style="height:${block.padding ?? 40}px"></div>`;
+      if (block.type === 'columns') return `<div class="features"${style}><p>${content}</p><p>${secondary}</p></div>`;
+      if (block.type === 'video') return `<a class="video-link"${style} href="${escapeHtml(block.secondary || '#')}">${content || 'Watch our introduction'}</a>`;
+      if (block.type === 'contact-form') return `<div class="form-preview"${style}><p>This sample form needs a form service before it can receive submissions.</p><form><label>Name <input name="name" autocomplete="name"></label><label>Email <input name="email" type="email" autocomplete="email"></label><button type="button" disabled>Connect a form provider</button></form></div>`;
+      return `<div class="content-container"${style}>${content}</div>`;
     }).join('\n');
     const extra = blocks ? `<div class="custom-elements">${blocks}</div>` : '';
     if (section.type === 'navigation') return `<header class="nav"><strong>${title}</strong><span>${body}</span>${extra}</header>`;
@@ -313,7 +332,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
   const [all, setAll] = useState(readProjects);
   const project = all.find(item => item.id === projectId);
   const [selected, setSelected] = useState<string>('');
-  const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop');
+  const [device, setDevice] = useState<'desktop' | 'tablet' | 'mobile'>(() => window.matchMedia('(max-width:720px)').matches ? 'mobile' : window.matchMedia('(max-width:1100px)').matches ? 'tablet' : 'desktop');
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [saved, setSaved] = useState(true);
   const [saveError, setSaveError] = useState(false);
@@ -322,12 +341,18 @@ function ProjectEditor({ projectId }: { projectId: string }) {
   const [panelTab, setPanelTab] = useState<'elements' | 'sections' | 'layers'>('layers');
   const [mobileSheet, setMobileSheet] = useState<'elements' | 'sections' | 'layers' | 'properties' | 'preview' | 'more' | null>(null);
   const [selectedBlockId, setSelectedBlockId] = useState('');
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [dropTargetId, setDropTargetId] = useState('');
   const [zoom, setZoom] = useState(100);
   const [previewOnly, setPreviewOnly] = useState(false);
   const [history, setHistory] = useState<Project[]>([]);
   const [future, setFuture] = useState<Project[]>([]);
   const dragId = useRef('');
+  const dragBlockId = useRef('');
+  const dragBlockSectionId = useRef('');
   const dragType = useRef<SectionType | ''>('');
+  const canvasAreaRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (project && !selected && project.sections[0]) setSelected(project.sections[0].id);
   }, [project, selected]);
@@ -369,20 +394,88 @@ function ProjectEditor({ projectId }: { projectId: string }) {
   function addElement(type: BlockType) {
     if (!project || !selectedSection || selectedSection.locked) return;
     const labels: Record<BlockType, string> = { heading: 'Your new heading', text: 'Add a little more detail about your business.', image: 'Describe this image', button: 'Get started', container: 'Content container', columns: 'First column content', divider: 'Divider', spacer: 'Spacer', icon: '★', video: 'Watch our introduction', 'contact-form': 'Contact us' };
-    const block: BlockElement = { id: uuid(), type, content: labels[type], ...(type === 'columns' ? { secondary: 'Second column content' } : {}), ...(type === 'image' ? { imageUrl: '' } : {}) };
+    const block: BlockElement = { id: uuid(), type, content: labels[type], visible: true, locked: false, ...(type === 'columns' ? { secondary: 'Second column content' } : {}), ...(type === 'image' ? { imageUrl: '' } : {}) };
     patchSection(selectedSection.id, { elements: [...(selectedSection.elements || []), block] });
     setSelectedBlockId(block.id);
     setMobileSheet('properties');
     setInspectorOpen(true);
+    setRightCollapsed(false);
   }
   function patchElement(blockId: string, patch: Partial<BlockElement>) {
     if (!selectedSection || selectedSection.locked) return;
+    const current = selectedSection.elements?.find(item => item.id === blockId);
+    if (current?.locked && Object.keys(patch).some(key => key !== 'locked' && key !== 'visible')) return;
     patchSection(selectedSection.id, { elements: (selectedSection.elements || []).map(item => item.id === blockId ? { ...item, ...patch } : item) });
   }
-  function removeElement(blockId: string) {
-    if (!selectedSection) return;
-    patchSection(selectedSection.id, { elements: (selectedSection.elements || []).filter(item => item.id !== blockId) });
-    setSelectedBlockId('');
+  function patchElementInSection(sectionId: string, blockId: string, patch: Partial<BlockElement>) {
+    const section = project?.sections.find(item => item.id === sectionId);
+    const current = section?.elements?.find(item => item.id === blockId);
+    if (!section || !current || section.locked) return;
+    if (current.locked && Object.keys(patch).some(key => key !== 'locked' && key !== 'visible')) return;
+    patchSection(sectionId, { elements: (section.elements || []).map(item => item.id === blockId ? { ...item, ...patch } : item) });
+  }
+  function moveElement(sectionId: string, blockId: string, direction: -1 | 1) {
+    const section = project?.sections.find(item => item.id === sectionId);
+    if (!section || section.locked) return;
+    const elements = [...(section.elements || [])];
+    const index = elements.findIndex(item => item.id === blockId);
+    const target = elements[index + direction];
+    if (index < 0 || !target || elements[index].locked || target.locked) return;
+    [elements[index], elements[index + direction]] = [elements[index + direction], elements[index]];
+    patchSection(sectionId, { elements });
+  }
+  function reorderElements(sectionId: string, fromId: string, toId: string) {
+    if (!fromId || !toId || fromId === toId) return;
+    const section = project?.sections.find(item => item.id === sectionId);
+    if (!section || section.locked) return;
+    const elements = [...(section.elements || [])];
+    const fromIndex = elements.findIndex(item => item.id === fromId);
+    const toIndex = elements.findIndex(item => item.id === toId);
+    if (fromIndex < 0 || toIndex < 0 || elements[fromIndex].locked || elements[toIndex].locked) return;
+    const [element] = elements.splice(fromIndex, 1);
+    elements.splice(toIndex, 0, element);
+    patchSection(sectionId, { elements });
+  }
+  function moveElementToSection(fromSectionId: string, toSectionId: string, blockId: string, beforeBlockId?: string) {
+    const source = project?.sections.find(item => item.id === fromSectionId);
+    const target = project?.sections.find(item => item.id === toSectionId);
+    if (!source || !target || source.locked || target.locked) return;
+    if (fromSectionId === toSectionId) {
+      if (beforeBlockId) reorderElements(toSectionId, blockId, beforeBlockId);
+      return;
+    }
+    const block = source.elements?.find(item => item.id === blockId);
+    if (!block || block.locked) return;
+    const sourceElements = (source.elements || []).filter(item => item.id !== blockId);
+    const targetElements = [...(target.elements || [])];
+    const targetIndex = beforeBlockId ? targetElements.findIndex(item => item.id === beforeBlockId) : -1;
+    targetElements.splice(targetIndex < 0 ? targetElements.length : targetIndex, 0, block);
+    const sections = project!.sections.map(section => section.id === source.id
+      ? { ...section, elements: sourceElements }
+      : section.id === target.id ? { ...section, elements: targetElements } : section);
+    commit({ ...project!, sections });
+    setSelected(toSectionId);
+    setSelectedBlockId(blockId);
+  }
+  function duplicateElement(sectionId: string, blockId: string) {
+    const section = project?.sections.find(item => item.id === sectionId);
+    if (!section || section.locked) return;
+    const elements = [...(section.elements || [])];
+    const index = elements.findIndex(item => item.id === blockId);
+    const source = elements[index];
+    if (!source || source.locked) return;
+    const copy = { ...source, id: uuid(), content: `${source.content} (copy)`, locked: false };
+    elements.splice(index + 1, 0, copy);
+    patchSection(sectionId, { elements });
+    setSelected(sectionId);
+    setSelectedBlockId(copy.id);
+  }
+  function removeElement(sectionId: string, blockId: string) {
+    const section = project?.sections.find(item => item.id === sectionId);
+    const block = section?.elements?.find(item => item.id === blockId);
+    if (!section || section.locked || block?.locked) return;
+    patchSection(sectionId, { elements: (section.elements || []).filter(item => item.id !== blockId) });
+    if (selectedBlockId === blockId) setSelectedBlockId('');
   }
   function addSection(type: SectionType, beforeId?: string) {
     if (!project) return;
@@ -448,8 +541,25 @@ function ProjectEditor({ projectId }: { projectId: string }) {
   }, [undo, redo]);
   function exportJson() { if (project) { downloadFile(`${safeName(project.name)}.json`, JSON.stringify(project, null, 2), 'application/json'); setNotice('Project JSON downloaded.'); } }
   function exportHtml() { if (project) { downloadFile(`${safeName(project.name)}.html`, renderHtml(project), 'text/html'); setNotice('Self-contained HTML downloaded.'); } }
+  function togglePropertiesPanel() {
+    if (window.matchMedia('(max-width:1100px) and (min-width:721px)').matches) {
+      setInspectorOpen(open => !open);
+      setRightCollapsed(false);
+    } else {
+      setRightCollapsed(open => !open);
+    }
+  }
+  function fitCanvas() {
+    const targetWidth = device === 'desktop' ? 1280 : device === 'tablet' ? 768 : 390;
+    const availableWidth = Math.max(0, (canvasAreaRef.current?.clientWidth ?? window.innerWidth) - 32);
+    setZoom(Math.max(25, Math.min(100, Math.floor((availableWidth / targetWidth) * 100))));
+  }
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(fitCanvas);
+    return () => window.cancelAnimationFrame(frame);
+  }, [device]);
   if (!project) return <AppFrame><main className="page"><div className="surface empty-state"><CircleHelp size={28} /><h2>Project not found</h2><p>This local project may have been removed or is not available in this browser.</p><Link href="/projects" className="primary-button" data-testid="link-back-projects">Back to projects <ArrowRight size={14} /></Link></div></main></AppFrame>;
-  const canvasWidth = device === 'desktop' ? '100%' : device === 'tablet' ? 'min(768px, 100%)' : 'min(390px, 100%)';
+  const canvasWidth = device === 'desktop' ? '1280px' : device === 'tablet' ? '768px' : '390px';
   return <div className="editor-shell">
     <header className={`editor-top ${previewOnly ? 'preview-mode' : ''}`}>
       <Link href="/projects" className="icon-button" aria-label="Back to projects" data-testid="link-editor-projects"><ArrowLeft size={16} /></Link>
@@ -469,9 +579,9 @@ function ProjectEditor({ projectId }: { projectId: string }) {
       <button className="toolbar-button" onClick={exportHtml} data-testid="button-export-html"><Download size={14} /> HTML</button>
       <button className="primary-button" onClick={() => setPublishOpen(true)} data-testid="button-publish">Publish</button>
     </header>
-    <div className="editor-content">
+    <div className={`editor-content ${leftCollapsed ? 'left-collapsed' : ''} ${rightCollapsed ? 'right-collapsed' : ''}`}>
        <aside className={`side-panel left-panel ${mobileSheet && ['elements','sections','layers'].includes(mobileSheet) ? 'mobile-sheet-open' : ''}`} aria-label="Editor tools">
-         <div className="panel-head"><span>{panelTab === 'elements' ? 'Elements' : panelTab === 'sections' ? 'Sections' : 'Layers'}</span><button className="icon-button mobile-sheet-close" aria-label="Close tools" onClick={() => setMobileSheet(null)}><X size={16} /></button><span className="meta">{panelTab === 'layers' ? project.sections.length : ''}</span></div>
+          <div className="panel-head"><span>{panelTab === 'elements' ? 'Elements' : panelTab === 'sections' ? 'Sections' : 'Layers'}</span><span className="panel-head-actions"><button className="icon-button panel-collapse-control" aria-label="Collapse tools" aria-expanded={!leftCollapsed} onClick={() => setLeftCollapsed(true)} data-testid="button-collapse-tools"><X size={15} /></button><button className="icon-button mobile-sheet-close" aria-label="Close tools" onClick={() => setMobileSheet(null)}><X size={16} /></button><span className="meta">{panelTab === 'layers' ? project.sections.length : ''}</span></span></div>
          <div className="editor-tabs" role="tablist" aria-label="Editor panels">
            {(['elements', 'sections', 'layers'] as const).map(tab => <button key={tab} role="tab" aria-selected={panelTab === tab} className={panelTab === tab ? 'active' : ''} onClick={() => setPanelTab(tab)} data-testid={`tab-${tab}`}>{tab}</button>)}
          </div>
@@ -480,34 +590,54 @@ function ProjectEditor({ projectId }: { projectId: string }) {
            ['heading', 'Heading', Type], ['text', 'Text', Type], ['image', 'Image', ImageIcon], ['button', 'Button', MousePointer2], ['container', 'Container', Box], ['columns', 'Columns', Columns2], ['divider', 'Divider', Minus], ['spacer', 'Spacer', Maximize2], ['icon', 'Icon', Plus], ['video', 'Video', Video], ['contact-form', 'Contact form', Mail],
          ] as const).map(([type, label, Icon]) => <button key={type} onClick={() => addElement(type)} disabled={!selectedSection || selectedSection.locked} data-testid={`add-element-${type}`}><Icon size={16} /><span>{label}</span><Plus size={13} className="element-add-icon" /></button>)}</div></>}
          {panelTab === 'sections' && <><p className="panel-helper">Choose a section preset</p><div className="add-section-menu section-library" aria-label="Add a section">{(['navigation', 'hero', 'features', 'about', 'gallery', 'testimonial', 'pricing', 'faq', 'contact', 'footer'] as SectionType[]).map(type => <button key={type} draggable onDragStart={event => { dragType.current = type; dragId.current = ''; event.dataTransfer.setData('text/plain', type); }} onClick={() => addSection(type)} data-testid={`button-add-${type}`}><Plus size={13} /> {sectionLabels[type]}</button>)}</div></>}
-         {panelTab === 'layers' && <>
-          <div className="layers-note">Drag to reorder</div>
-          <div className="layers-list">{project.sections.map((section, index) => <div key={section.id} className={`layer-row ${selected === section.id ? 'selected' : ''}`} onClick={() => setSelected(section.id)} onDragOver={e => e.preventDefault()} onDrop={() => reorder(dragId.current, section.id)} data-testid={`layer-${section.id}`}>
-             <span className="layer-grip" draggable={!section.locked} aria-label={`Reorder ${sectionLabels[section.type]}`} onDragStart={() => { dragId.current = section.id; }} onClick={e => e.stopPropagation()}><GripVertical size={13} /></span>
-            <span className="layer-title">{sectionLabels[section.type]} <span style={{ opacity: .55 }}>{index + 1}</span></span>
-             <span className="layer-move-controls">
-               <button className="icon-button" aria-label="Move section up" disabled={index === 0 || section.locked || project.sections[index - 1]?.locked} onClick={e => { e.stopPropagation(); moveSection(section.id, -1); }}><ArrowUp size={12} /></button>
-               <button className="icon-button" aria-label="Move section down" disabled={index === project.sections.length - 1 || section.locked || project.sections[index + 1]?.locked} onClick={e => { e.stopPropagation(); moveSection(section.id, 1); }}><ArrowDown size={12} /></button>
-             </span>
-            <span className="layer-mini">
-              <button className="icon-button" aria-label={section.visible ? 'Hide section' : 'Show section'} onClick={e => { e.stopPropagation(); patchSection(section.id, { visible: !section.visible }); }} data-testid={`button-visibility-${section.id}`}>{section.visible ? <Eye size={12} /> : <EyeOff size={12} />}</button>
-               <button className="icon-button" aria-label={section.locked ? 'Unlock section' : 'Lock section'} title={section.locked ? 'Unlock section' : 'Lock section'} onClick={e => { e.stopPropagation(); patchSection(section.id, { locked: !section.locked }); }} data-testid={`button-lock-${section.id}`}>{section.locked ? <Lock size={12} /> : <Unlock size={12} />}</button>
-               <button className="icon-button" aria-label="Duplicate section" disabled={section.locked} onClick={e => { e.stopPropagation(); duplicateSection(section.id); }} data-testid={`button-duplicate-section-${section.id}`}><Copy size={12} /></button>
-              {!section.locked && <button className="icon-button" aria-label="Remove section" onClick={e => { e.stopPropagation(); removeSection(section.id); }} data-testid={`button-remove-section-${section.id}`}><X size={12} /></button>}
-            </span>
-          </div>)}</div>
-         </>}
+          {panelTab === 'layers' && <>
+           <div className="layers-note">Drag to reorder · select to edit</div>
+           <div className="layers-list">{project.sections.map((section, index) => <div className="layer-group" key={section.id}>
+             <div role="group" tabIndex={0} aria-label={`${sectionLabels[section.type]} section`} className={`layer-row ${selected === section.id && !selectedBlockId ? 'selected' : ''}`} onClick={() => { setSelected(section.id); setSelectedBlockId(''); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(section.id); setSelectedBlockId(''); } }} onDragOver={event => { event.preventDefault(); setDropTargetId(section.id); }} onDragLeave={() => setDropTargetId('')} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current); else reorder(dragId.current, section.id); setDropTargetId(''); }} data-testid={`layer-${section.id}`}>
+              <span className="layer-grip" draggable={!section.locked} aria-label={`Reorder ${sectionLabels[section.type]}`} onDragStart={() => { dragId.current = section.id; dragBlockId.current = ''; dragBlockSectionId.current = ''; }} onClick={event => event.stopPropagation()}><GripVertical size={13} /></span>
+              <span className="layer-title">{sectionLabels[section.type]} <span style={{ opacity: .55 }}>{index + 1}</span></span>
+              <span className="layer-move-controls">
+                <button className="icon-button" aria-label="Move section up" disabled={index === 0 || section.locked || project.sections[index - 1]?.locked} onClick={event => { event.stopPropagation(); moveSection(section.id, -1); }}><ArrowUp size={12} /></button>
+                <button className="icon-button" aria-label="Move section down" disabled={index === project.sections.length - 1 || section.locked || project.sections[index + 1]?.locked} onClick={event => { event.stopPropagation(); moveSection(section.id, 1); }}><ArrowDown size={12} /></button>
+              </span>
+              <span className="layer-mini">
+                <button className="icon-button" aria-label={section.visible ? 'Hide section' : 'Show section'} onClick={event => { event.stopPropagation(); patchSection(section.id, { visible: !section.visible }); }} data-testid={`button-visibility-${section.id}`}>{section.visible ? <Eye size={12} /> : <EyeOff size={12} />}</button>
+                <button className="icon-button" aria-label={section.locked ? 'Unlock section' : 'Lock section'} title={section.locked ? 'Unlock section' : 'Lock section'} onClick={event => { event.stopPropagation(); patchSection(section.id, { locked: !section.locked }); }} data-testid={`button-lock-${section.id}`}>{section.locked ? <Lock size={12} /> : <Unlock size={12} />}</button>
+                <button className="icon-button" aria-label="Duplicate section" disabled={section.locked} onClick={event => { event.stopPropagation(); duplicateSection(section.id); }} data-testid={`button-duplicate-section-${section.id}`}><Copy size={12} /></button>
+                {!section.locked && <button className="icon-button" aria-label="Remove section" onClick={event => { event.stopPropagation(); removeSection(section.id); }} data-testid={`button-remove-section-${section.id}`}><X size={12} /></button>}
+              </span>
+             </div>
+             {(section.elements || []).map((element, elementIndex) => <div key={element.id} role="group" tabIndex={0} aria-label={`${element.type.replace('-', ' ')} element in ${sectionLabels[section.type]}`} draggable={!element.locked && !section.locked} className={`layer-row layer-element-row ${selected === section.id && selectedBlockId === element.id ? 'selected' : ''} ${dropTargetId === element.id ? 'drop-target' : ''}`} onClick={() => { setSelected(section.id); setSelectedBlockId(element.id); setInspectorOpen(true); setMobileSheet('properties'); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(section.id); setSelectedBlockId(element.id); setInspectorOpen(true); setMobileSheet('properties'); } }} onDragStart={event => { dragBlockId.current = element.id; dragBlockSectionId.current = section.id; dragId.current = ''; event.dataTransfer.effectAllowed = 'move'; }} onDragOver={event => { event.preventDefault(); setDropTargetId(element.id); }} onDragLeave={() => setDropTargetId('')} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current, element.id); setDropTargetId(''); }} onDragEnd={() => { dragBlockId.current = ''; dragBlockSectionId.current = ''; setDropTargetId(''); }} data-testid={`layer-element-${element.id}`}>
+               <span className="layer-grip" aria-label={`Reorder ${element.type}`}><GripVertical size={12} /></span>
+               <span className="layer-title">{element.type.replace('-', ' ')} <span style={{ opacity: .55 }}>{elementIndex + 1}</span></span>
+               <span className="layer-move-controls">
+                 <button className="icon-button" aria-label="Move element up" disabled={elementIndex === 0 || element.locked || section.locked || section.elements?.[elementIndex - 1]?.locked} onClick={event => { event.stopPropagation(); moveElement(section.id, element.id, -1); }}><ArrowUp size={12} /></button>
+                 <button className="icon-button" aria-label="Move element down" disabled={elementIndex === (section.elements?.length || 0) - 1 || element.locked || section.locked || section.elements?.[elementIndex + 1]?.locked} onClick={event => { event.stopPropagation(); moveElement(section.id, element.id, 1); }}><ArrowDown size={12} /></button>
+               </span>
+               <span className="layer-mini">
+                 <button className="icon-button" aria-label={element.visible === false ? 'Show element' : 'Hide element'} onClick={event => { event.stopPropagation(); patchElementInSection(section.id, element.id, { visible: element.visible === false }); }} data-testid={`button-element-visibility-${element.id}`}>{element.visible === false ? <EyeOff size={12} /> : <Eye size={12} />}</button>
+                 <button className="icon-button" aria-label={element.locked ? 'Unlock element' : 'Lock element'} onClick={event => { event.stopPropagation(); patchElementInSection(section.id, element.id, { locked: !element.locked }); }} data-testid={`button-element-lock-${element.id}`}>{element.locked ? <Lock size={12} /> : <Unlock size={12} />}</button>
+                 <button className="icon-button" aria-label="Duplicate element" disabled={element.locked || section.locked} onClick={event => { event.stopPropagation(); setSelected(section.id); duplicateElement(section.id, element.id); }} data-testid={`button-element-duplicate-${element.id}`}><Copy size={12} /></button>
+                 <button className="icon-button" aria-label="Remove element" disabled={element.locked || section.locked} onClick={event => { event.stopPropagation(); removeElement(section.id, element.id); }} data-testid={`button-element-remove-${element.id}`}><X size={12} /></button>
+               </span>
+             </div>)}
+           </div>)}</div>
+          </>}
         </div>
       </aside>
-      <main className="canvas-area" aria-label="Page canvas">
+      <main className="canvas-area" aria-label="Page canvas" ref={canvasAreaRef}>
         <div className="canvas-toolbar">
           <span className="canvas-toolbar-label">Preview</span>
-          <div className="zoom-controls"><button className="icon-button" aria-label="Zoom out" onClick={() => setZoom(value => Math.max(50, value - 10))} data-testid="button-zoom-out"><ZoomOut size={14} /></button><span data-testid="text-zoom">{zoom}%</span><button className="icon-button" aria-label="Zoom in" onClick={() => setZoom(value => Math.min(130, value + 10))} data-testid="button-zoom-in"><ZoomIn size={14} /></button><button className="fit-button" onClick={() => setZoom(100)} data-testid="button-fit-canvas"><Maximize2 size={13} /> Fit</button></div>
+          <div className="panel-visibility-buttons">
+            <button className="panel-toggle" aria-expanded={!leftCollapsed} onClick={() => setLeftCollapsed(open => !open)} data-testid="button-toggle-tools"><Layers3 size={14} /><span>Tools</span></button>
+            <button className="panel-toggle" aria-expanded={window.matchMedia('(max-width:1100px) and (min-width:721px)').matches ? inspectorOpen : !rightCollapsed} onClick={togglePropertiesPanel} data-testid="button-toggle-properties"><Settings2 size={14} /><span>Properties</span></button>
+          </div>
+          <div className="zoom-controls"><button className="icon-button" aria-label="Zoom out" onClick={() => setZoom(value => Math.max(25, value - 10))} data-testid="button-zoom-out"><ZoomOut size={14} /></button><span data-testid="text-zoom">{zoom}%</span><button className="icon-button" aria-label="Zoom in" onClick={() => setZoom(value => Math.min(130, value + 10))} data-testid="button-zoom-in"><ZoomIn size={14} /></button><button className="fit-button" onClick={fitCanvas} data-testid="button-fit-canvas"><Maximize2 size={13} /> Fit</button></div>
         </div>
         <div className="canvas-wrap" style={{ width: canvasWidth, zoom: zoom / 100 }}>
           <div className="canvas-label"><span>Page preview</span><span>{device === 'desktop' ? 'Fluid desktop' : device === 'tablet' ? '768 px' : '390 px'} · {previewOnly ? 'Preview' : 'Editing'}</span></div>
-            <div className={`site-canvas ${previewOnly ? 'uncluttered-preview' : ''}`} style={{ '--site-bg': project.theme.backgroundColor, '--site-text': project.theme.textColor, '--site-primary': project.theme.primaryColor } as CSSProperties} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (dragType.current) addSection(dragType.current); }} data-testid="site-canvas">
-             {project.sections.filter(section => section.visible).map(section => <section key={section.id} id={section.type === 'contact' ? 'contact' : undefined} draggable={!section.locked} onDragStart={() => { dragId.current = section.id; dragType.current = ''; }} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); e.stopPropagation(); if (dragType.current) addSection(dragType.current, section.id); else reorder(dragId.current, section.id); }} onClick={() => setSelected(section.id)} className={`site-section ${selected === section.id ? 'selected' : ''} ${section.type === 'hero' ? 'site-hero' : ''} ${section.type === 'features' ? 'site-feature' : ''} ${section.type === 'testimonial' ? 'site-quote' : ''} ${section.type === 'contact' ? 'site-contact' : ''} ${section.type === 'footer' ? 'site-footer' : ''}`} style={{ paddingTop: section.padding, paddingBottom: section.padding }} data-testid={`canvas-section-${section.id}`}>
+            <div className={`site-canvas ${previewOnly ? 'uncluttered-preview' : ''}`} style={{ '--site-bg': project.theme.backgroundColor, '--site-text': project.theme.textColor, '--site-primary': project.theme.primaryColor } as CSSProperties} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (dragType.current) addSection(dragType.current); setDropTargetId(''); }} data-testid="site-canvas">
+             {project.sections.filter(section => section.visible).map(section => <section key={section.id} id={section.type === 'contact' ? 'contact' : undefined} tabIndex={previewOnly ? undefined : 0} aria-label={`${sectionLabels[section.type]} section`} draggable={!section.locked && !previewOnly} onDragStart={event => { if ((event.target as HTMLElement).closest('.site-block')) return; dragId.current = section.id; dragType.current = ''; dragBlockId.current = ''; dragBlockSectionId.current = ''; event.dataTransfer.effectAllowed = 'move'; }} onDragOver={event => { event.preventDefault(); if (!dragBlockId.current) setDropTargetId(section.id); }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetId(''); }} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current); else if (dragType.current) addSection(dragType.current, section.id); else reorder(dragId.current, section.id); setDropTargetId(''); }} onDragEnd={() => { dragId.current = ''; setDropTargetId(''); }} onKeyDown={event => { if (!previewOnly && event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(section.id); setSelectedBlockId(''); setInspectorOpen(true); setRightCollapsed(false); } }} onClick={event => { if (previewOnly) return; setSelected(section.id); setSelectedBlockId(''); if (!(event.target as HTMLElement).isContentEditable) { setInspectorOpen(true); setRightCollapsed(false); if (window.matchMedia('(max-width:720px)').matches) setMobileSheet('properties'); } }} className={`site-section ${selected === section.id ? 'selected' : ''} ${dropTargetId === section.id ? 'drop-target' : ''} ${section.type === 'hero' ? 'site-hero' : ''} ${section.type === 'features' ? 'site-feature' : ''} ${section.type === 'testimonial' ? 'site-quote' : ''} ${section.type === 'contact' ? 'site-contact' : ''} ${section.type === 'footer' ? 'site-footer' : ''}`} style={{ paddingTop: section.padding, paddingBottom: section.padding }} data-testid={`canvas-section-${section.id}`}>
                   {!previewOnly && <span className="inline-hint">Select to edit</span>}
                {section.type === 'navigation' ? <><strong contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })} style={{ font: '17px "DM Serif Display", serif' }}>{section.title}</strong><span contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })} style={{ float: 'right', fontSize: 11, opacity: .7 }}>{section.body}</span></> :
                  section.type === 'hero' ? <><h1 contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h1><p contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p><a className="site-cta" href="#contact" onClick={e => { e.preventDefault(); setSelected(section.id); }}>Get in touch</a></> :
@@ -515,16 +645,16 @@ function ProjectEditor({ projectId }: { projectId: string }) {
                  section.type === 'testimonial' ? <><p contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</p><small contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</small></> :
                  section.type === 'footer' ? <><strong contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</strong><span contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })} style={{ marginLeft: 8 }}>{section.body}</span></> :
                   <><h2 contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h2><p contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p></>}
-                {(section.elements || []).map(block => <div key={block.id} className={`site-block site-block-${block.type} ${selectedBlockId === block.id ? 'selected-block' : ''}`} onClick={e => { e.stopPropagation(); setSelected(section.id); setSelectedBlockId(block.id); setInspectorOpen(true); setMobileSheet('properties'); }} data-testid={`canvas-element-${block.id}`}>
+                 {(section.elements || []).filter(block => block.visible !== false).map(block => <div key={block.id} role="group" tabIndex={previewOnly ? -1 : 0} aria-label={`${block.type.replace('-', ' ')} element`} draggable={!block.locked && !section.locked && !previewOnly} onKeyDown={event => { if (!previewOnly && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(section.id); setSelectedBlockId(block.id); setInspectorOpen(true); setMobileSheet('properties'); } }} onDragStart={event => { event.stopPropagation(); dragBlockId.current = block.id; dragBlockSectionId.current = section.id; dragId.current = ''; event.dataTransfer.effectAllowed = 'move'; }} onDragOver={event => { event.preventDefault(); event.stopPropagation(); setDropTargetId(block.id); }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetId(''); }} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current, block.id); else if (dragType.current) addSection(dragType.current, section.id); setDropTargetId(''); }} onDragEnd={() => { dragBlockId.current = ''; dragBlockSectionId.current = ''; setDropTargetId(''); }} className={`site-block site-block-${block.type} ${selectedBlockId === block.id ? 'selected-block' : ''} ${dropTargetId === block.id ? 'drop-target' : ''}`} style={{ fontSize: block.fontSize ? `${block.fontSize}px` : undefined, color: block.color, backgroundColor: block.backgroundColor, padding: block.padding ?? undefined }} onClick={event => { if (previewOnly) return; event.stopPropagation(); setSelected(section.id); setSelectedBlockId(block.id); setInspectorOpen(true); setRightCollapsed(false); setMobileSheet('properties'); }} data-testid={`canvas-element-${block.id}`}>
                   {block.type === 'heading' ? <h2>{block.content}</h2> :
                    block.type === 'text' ? <p>{block.content}</p> :
                    block.type === 'image' ? (block.imageUrl ? <img src={block.imageUrl} alt={block.content} /> : <div className="image-placeholder"><ImageIcon size={22} /><span>{block.content}</span></div>) :
-                   block.type === 'button' ? <span className="site-cta">{block.content}</span> :
+                    block.type === 'button' ? <a className="site-cta" style={{ fontSize: block.fontSize ? `${block.fontSize}px` : undefined, color: block.color, backgroundColor: block.backgroundColor, padding: block.padding ?? undefined }} href={block.secondary || '#contact'} onClick={event => { if (!previewOnly) event.preventDefault(); }}>{block.content}</a> :
                    block.type === 'divider' ? <hr /> :
                    block.type === 'spacer' ? <div className="block-spacer" aria-label="Spacer element" /> :
                    block.type === 'columns' ? <div className="block-columns"><p>{block.content}</p><p>{block.secondary}</p></div> :
-                   block.type === 'video' ? <div className="video-placeholder"><Video size={20} />{block.content}</div> :
-                   block.type === 'contact-form' ? <div className="block-form-preview"><label>Name<input readOnly value="" /></label><label>Email<input readOnly value="" /></label><button type="button">Send message</button></div> :
+                    block.type === 'video' ? <a className="video-placeholder" href={block.secondary || undefined} target="_blank" rel="noreferrer" onClick={event => { if (!previewOnly) event.preventDefault(); }}><Video size={20} />{block.content}</a> :
+                    block.type === 'contact-form' ? <div className="block-form-preview"><label>Name<input readOnly value="" /></label><label>Email<input readOnly value="" /></label><button type="button" disabled>Connect a form provider</button><small>Sample only · submissions are not connected</small></div> :
                    block.type === 'icon' ? <span className="block-icon" aria-label={block.content}>{block.content}</span> : <div className="block-container">{block.content}</div>}
                   <span className="block-select-label">Selected element</span>
                 </div>)}
@@ -532,15 +662,23 @@ function ProjectEditor({ projectId }: { projectId: string }) {
           </div>
         </div>
       </main>
-      <aside className={`side-panel right-panel ${inspectorOpen || mobileSheet === 'properties' ? 'mobile-inspector-open' : ''}`} aria-label="Section properties">
-        <div className="panel-head"><span>{selectedBlock ? `${selectedBlock.type.replace('-', ' ')} properties` : 'Properties'}</span><button className="icon-button" aria-label="Close properties" onClick={() => { setInspectorOpen(false); setMobileSheet(null); }}><X size={16} /></button></div>
+       <aside className={`side-panel right-panel ${inspectorOpen || mobileSheet === 'properties' ? 'mobile-inspector-open' : ''}`} aria-label="Section properties">
+        <div className="panel-head"><span>{selectedBlock ? `${selectedBlock.type.replace('-', ' ')} properties` : 'Properties'}</span><button className="icon-button panel-collapse-control" aria-label="Close properties" aria-expanded={!rightCollapsed} onClick={() => { setInspectorOpen(false); setRightCollapsed(true); setMobileSheet(null); }} data-testid="button-close-properties"><X size={16} /></button></div>
         {selectedBlock && selectedSection ? <div className="panel-body">
           <div className="property-section"><div className="property-title">Content</div>
-            <label className="property-label" htmlFor="block-content">{selectedBlock.type === 'image' ? 'Alt text' : 'Text'}</label><textarea id="block-content" className="property-input property-textarea" value={selectedBlock.content} disabled={selectedSection.locked} onChange={e => patchElement(selectedBlock.id, { content: e.target.value })} data-testid="input-element-content" />
-            {['image', 'button', 'video'].includes(selectedBlock.type) && <><label className="property-label" htmlFor="block-secondary">{selectedBlock.type === 'image' ? 'Image URL' : 'Link URL'}</label><input id="block-secondary" className="property-input" value={selectedBlock.type === 'image' ? selectedBlock.imageUrl || '' : selectedBlock.secondary || ''} disabled={selectedSection.locked} onChange={e => patchElement(selectedBlock.id, selectedBlock.type === 'image' ? { imageUrl: e.target.value } : { secondary: e.target.value })} data-testid="input-element-url" /></>}
-            {selectedBlock.type === 'columns' && <><label className="property-label" htmlFor="block-column-two">Second column</label><textarea id="block-column-two" className="property-input property-textarea" value={selectedBlock.secondary || ''} disabled={selectedSection.locked} onChange={e => patchElement(selectedBlock.id, { secondary: e.target.value })} data-testid="input-element-column-two" /></>}
+            <label className="property-label" htmlFor="block-content">{selectedBlock.type === 'image' ? 'Alt text' : 'Text'}</label><textarea id="block-content" className="property-input property-textarea" value={selectedBlock.content} disabled={selectedSection.locked || selectedBlock.locked} onChange={e => patchElement(selectedBlock.id, { content: e.target.value })} data-testid="input-element-content" />
+            {['image', 'button', 'video'].includes(selectedBlock.type) && <><label className="property-label" htmlFor="block-secondary">{selectedBlock.type === 'image' ? 'Image URL' : 'Link URL'}</label><input id="block-secondary" className="property-input" value={selectedBlock.type === 'image' ? selectedBlock.imageUrl || '' : selectedBlock.secondary || ''} disabled={selectedSection.locked || selectedBlock.locked} onChange={e => patchElement(selectedBlock.id, selectedBlock.type === 'image' ? { imageUrl: e.target.value } : { secondary: e.target.value })} data-testid="input-element-url" /></>}
+            {selectedBlock.type === 'columns' && <><label className="property-label" htmlFor="block-column-two">Second column</label><textarea id="block-column-two" className="property-input property-textarea" value={selectedBlock.secondary || ''} disabled={selectedSection.locked || selectedBlock.locked} onChange={e => patchElement(selectedBlock.id, { secondary: e.target.value })} data-testid="input-element-column-two" /></>}
           </div>
-          <div className="property-section"><div className="property-title">Element actions</div><button className="quiet-button wide" onClick={() => removeElement(selectedBlock.id)} disabled={selectedSection.locked} data-testid="button-remove-element"><Trash2 size={14} /> Remove element</button></div>
+          {['heading', 'text', 'button', 'icon', 'container', 'columns'].includes(selectedBlock.type) && <div className="property-section"><div className="property-title">Typography</div><label className="property-label" htmlFor="element-font-size">Font size</label><div className="range-row"><input id="element-font-size" type="range" min="8" max="64" step="1" value={selectedBlock.fontSize ?? 18} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { fontSize: Number(event.target.value) })} data-testid="input-element-font-size" /><span className="range-value">{selectedBlock.fontSize ?? 18}px</span></div></div>}
+          <div className="property-section"><div className="property-title">Colors</div><label className="color-row">Text color <input type="color" value={selectedBlock.color || project.theme.textColor} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { color: event.target.value })} aria-label="Element text color" data-testid="input-element-color" /></label><label className="color-row">Background <input type="color" value={selectedBlock.backgroundColor || project.theme.backgroundColor} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { backgroundColor: event.target.value })} aria-label="Element background color" data-testid="input-element-background" /></label></div>
+          <div className="property-section"><div className="property-title">Spacing</div><label className="property-label" htmlFor="element-padding">Element padding</label><div className="range-row"><input id="element-padding" type="range" min="0" max="60" step="2" value={selectedBlock.padding ?? 10} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { padding: Number(event.target.value) })} data-testid="input-element-padding" /><span className="range-value">{selectedBlock.padding ?? 10}px</span></div></div>
+          <div className="property-section"><div className="property-title">Element actions</div>
+            <button className="secondary-button wide" onClick={() => patchElement(selectedBlock.id, { locked: !selectedBlock.locked })} disabled={selectedSection.locked} data-testid="button-property-element-lock">{selectedBlock.locked ? <Unlock size={14} /> : <Lock size={14} />}{selectedBlock.locked ? 'Unlock element' : 'Lock element'}</button>
+            <button className="secondary-button wide" style={{ marginTop: 7 }} onClick={() => duplicateElement(selectedSection.id, selectedBlock.id)} disabled={selectedSection.locked || selectedBlock.locked} data-testid="button-property-element-duplicate"><Copy size={14} /> Duplicate element</button>
+            <button className="quiet-button wide" style={{ marginTop: 7 }} onClick={() => patchElement(selectedBlock.id, { visible: selectedBlock.visible === false })} disabled={selectedSection.locked || selectedBlock.locked} data-testid="button-property-element-visibility">{selectedBlock.visible === false ? <Eye size={14} /> : <EyeOff size={14} />}{selectedBlock.visible === false ? 'Show element' : 'Hide element'}</button>
+            <button className="quiet-button wide" style={{ marginTop: 7, color: '#e99a98' }} onClick={() => removeElement(selectedSection.id, selectedBlock.id)} disabled={selectedSection.locked || selectedBlock.locked} data-testid="button-remove-element"><Trash2 size={14} /> Remove element</button>
+          </div>
           <p className="template-hint">This block is stored with its section and included in both exports.</p>
         </div> : selectedSection ? <div className="panel-body">
           <div className="property-section"><div className="property-title">{sectionLabels[selectedSection.type]} section</div>
@@ -580,6 +718,9 @@ function ProjectEditor({ projectId }: { projectId: string }) {
       <div className="sheet-grabber" /><div className="sheet-heading"><strong>{mobileSheet === 'more' ? 'More actions' : mobileSheet === 'preview' ? 'Preview options' : mobileSheet[0].toUpperCase() + mobileSheet.slice(1)}</strong><button className="icon-button" aria-label="Close panel" onClick={() => setMobileSheet(null)}><X size={18} /></button></div>
       {mobileSheet === 'more' && <div className="more-actions">
         <button onClick={undo} disabled={!history.length} data-testid="sheet-undo"><Undo2 size={16} />Undo</button><button onClick={redo} disabled={!future.length} data-testid="sheet-redo"><Redo2 size={16} />Redo</button>
+         <button onClick={() => { setDevice('desktop'); setMobileSheet(null); }} aria-pressed={device === 'desktop'} data-testid="sheet-preview-desktop"><Monitor size={16} />Desktop preview</button>
+         <button onClick={() => { setDevice('tablet'); setMobileSheet(null); }} aria-pressed={device === 'tablet'} data-testid="sheet-preview-tablet"><Tablet size={16} />Tablet preview</button>
+         <button onClick={() => { setDevice('mobile'); setMobileSheet(null); }} aria-pressed={device === 'mobile'} data-testid="sheet-preview-mobile"><Smartphone size={16} />Mobile preview</button>
         <button onClick={exportJson} data-testid="sheet-export-json"><Code2 size={16} />Export JSON</button><button onClick={exportHtml} data-testid="sheet-export-html"><Download size={16} />Export HTML</button>
         <button onClick={() => { setPublishOpen(true); setMobileSheet(null); }} data-testid="sheet-publish"><ArrowUp size={16} />Publish status</button>
       </div>}

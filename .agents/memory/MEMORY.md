@@ -1,0 +1,1 @@
+- [NexoGen editor preservation](nexogen-editor-preservation.md) — redesigns must preserve existing editor workflows and locally saved projects.
