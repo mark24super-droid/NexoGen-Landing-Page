@@ -1,7 +1,7 @@
 kind = "web"
 previewPath = "/"
 title = "NexoGen"
-description = "An AI-powered business landing page builder. Create a starter page from local demos, customize sections in a visual editor, save projects locally, and export page files."
+description = "A local-first business landing-page builder with templates, a visual editor, browser-saved drafts, and HTML and JSON exports."
 version = "1.0.0"
 id = "artifacts/nexogen"
 router = "path"

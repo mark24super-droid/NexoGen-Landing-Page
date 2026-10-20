@@ -4,16 +4,21 @@ NexoGen is a visual business landing-page builder. The current Phase 1 is a loca
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
+- Use the Replit Run button / managed workflow `artifacts/nexogen: web` to run NexoGen at `/`. The workflow supplies `PORT` and `BASE_PATH`.
+- `pnpm install --frozen-lockfile` — install the existing workspace dependencies
+- `pnpm --filter @workspace/nexogen run typecheck` — check NexoGen's TypeScript
+- `PORT=24942 BASE_PATH=/ pnpm --filter @workspace/nexogen run build` — build NexoGen
+- For manual development outside the managed workflow: `PORT=24942 BASE_PATH=/ pnpm --filter @workspace/nexogen run dev`
+- `pnpm --filter @workspace/api-server run dev` — optional API scaffold, not needed by the current demo
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- NexoGen's current local-first demo requires no secrets or external services. `DATABASE_URL` is needed only if using the separate database/API scaffold.
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
+- pnpm workspaces, Node.js 20, TypeScript 5.9
 - API: Express 5
 - DB: PostgreSQL + Drizzle ORM
 - Validation: Zod (`zod/v4`), `drizzle-zod`
