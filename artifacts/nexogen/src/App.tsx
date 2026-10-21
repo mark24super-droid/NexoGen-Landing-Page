@@ -662,7 +662,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
           </div>
         </div>
       </main>
-       <aside className={`side-panel right-panel ${inspectorOpen || mobileSheet === 'properties' ? 'mobile-inspector-open' : ''}`} aria-label="Section properties">
+       <aside className={`side-panel right-panel ${inspectorOpen || mobileSheet === 'properties' ? 'mobile-inspector-open' : ''} ${mobileSheet === 'properties' ? 'mobile-sheet-open' : ''}`} aria-label="Section properties">
         <div className="panel-head"><span>{selectedBlock ? `${selectedBlock.type.replace('-', ' ')} properties` : 'Properties'}</span><button className="icon-button panel-collapse-control" aria-label="Close properties" aria-expanded={!rightCollapsed} onClick={() => { setInspectorOpen(false); setRightCollapsed(true); setMobileSheet(null); }} data-testid="button-close-properties"><X size={16} /></button></div>
         {selectedBlock && selectedSection ? <div className="panel-body">
           <div className="property-section"><div className="property-title">Content</div>
@@ -707,6 +707,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
       <button onClick={() => { setPreviewOnly(true); setMobileSheet(null); }} aria-label="Preview page" data-testid="button-mobile-preview"><Eye size={18} />Preview</button>
       <button onClick={() => setMobileSheet('more')} aria-label="More actions" data-testid="button-mobile-more"><MoreHorizontal size={18} />More</button>
     </nav>}
+    {!previewOnly && mobileSheet && ['elements', 'sections', 'layers', 'properties'].includes(mobileSheet) && <button className="editor-drawer-backdrop" type="button" aria-label="Close editor panel" onClick={() => { setMobileSheet(null); setInspectorOpen(false); }} data-testid="editor-drawer-backdrop" />}
     {notice && <div className="toast-message" role="status" onClick={() => setNotice('')} data-testid="status-notice">{notice}</div>}
     {publishOpen && <div className="modal-backdrop" role="presentation"><section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="publish-title">
       <h2 id="publish-title">Publishing needs setup</h2><p>This local demo cannot deploy a site yet. No hosting service or deployment is configured, and this page is not live.</p>
@@ -721,6 +722,9 @@ function ProjectEditor({ projectId }: { projectId: string }) {
          <button onClick={() => { setDevice('desktop'); setMobileSheet(null); }} aria-pressed={device === 'desktop'} data-testid="sheet-preview-desktop"><Monitor size={16} />Desktop preview</button>
          <button onClick={() => { setDevice('tablet'); setMobileSheet(null); }} aria-pressed={device === 'tablet'} data-testid="sheet-preview-tablet"><Tablet size={16} />Tablet preview</button>
          <button onClick={() => { setDevice('mobile'); setMobileSheet(null); }} aria-pressed={device === 'mobile'} data-testid="sheet-preview-mobile"><Smartphone size={16} />Mobile preview</button>
+         <button onClick={() => setZoom(value => Math.max(25, value - 10))} data-testid="sheet-zoom-out"><ZoomOut size={16} />Zoom out · {zoom}%</button>
+         <button onClick={() => setZoom(value => Math.min(130, value + 10))} data-testid="sheet-zoom-in"><ZoomIn size={16} />Zoom in · {zoom}%</button>
+         <button onClick={() => { fitCanvas(); setMobileSheet(null); }} data-testid="sheet-fit-canvas"><Maximize2 size={16} />Fit canvas</button>
         <button onClick={exportJson} data-testid="sheet-export-json"><Code2 size={16} />Export JSON</button><button onClick={exportHtml} data-testid="sheet-export-html"><Download size={16} />Export HTML</button>
         <button onClick={() => { setPublishOpen(true); setMobileSheet(null); }} data-testid="sheet-publish"><ArrowUp size={16} />Publish status</button>
       </div>}
