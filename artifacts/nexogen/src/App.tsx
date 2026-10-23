@@ -15,32 +15,53 @@ import { z } from 'zod';
 
 type SectionType = 'navigation' | 'hero' | 'about' | 'features' | 'gallery' | 'testimonial' | 'pricing' | 'faq' | 'contact' | 'footer';
 type BlockType = 'heading' | 'text' | 'image' | 'button' | 'container' | 'columns' | 'divider' | 'spacer' | 'icon' | 'video' | 'contact-form';
-type BlockElement = { id: string; type: BlockType; content: string; secondary?: string; imageUrl?: string; visible?: boolean; locked?: boolean; fontSize?: number; color?: string; backgroundColor?: string; padding?: number };
-type Section = { id: string; type: SectionType; title: string; body: string; imageUrl?: string; visible: boolean; locked: boolean; padding: number; elements?: BlockElement[] };
+type FontFamily = 'sans' | 'serif' | 'mono';
+type BlockElement = { id: string; type: BlockType; content: string; secondary?: string; imageUrl?: string; visible?: boolean; locked?: boolean; fontSize?: number; fontFamily?: FontFamily; color?: string; backgroundColor?: string; borderColor?: string; borderRadius?: number; padding?: number; children?: BlockElement[] };
+type Section = { id: string; type: SectionType; title: string; body: string; eyebrow?: string; ctaLabel?: string; ctaUrl?: string; imageUrl?: string; imageHint?: string; backgroundColor?: string; textColor?: string; borderColor?: string; borderRadius?: number; fontSize?: number; fontFamily?: FontFamily; visible: boolean; locked: boolean; padding: number; elements?: BlockElement[] };
 type Theme = { primaryColor: string; backgroundColor: string; textColor: string };
 type Project = { id: string; name: string; businessType: string; prompt: string; templateId: string; theme: Theme; sections: Section[]; updatedAt: string };
 type Template = { id: string; name: string; category: string; description: string; businessType: string; colors: [string, string, string]; tone: string; sections: Omit<Section, 'id'>[] };
 
 const queryClient = new QueryClient();
 const STORAGE_KEY = 'nexogen-projects-v1';
+const FontFamilySchema = z.enum(['sans', 'serif', 'mono']);
+const BlockElementSchema: z.ZodType<BlockElement> = z.lazy(() => z.object({
+  id: z.string().min(1),
+  type: z.enum(['heading', 'text', 'image', 'button', 'container', 'columns', 'divider', 'spacer', 'icon', 'video', 'contact-form']),
+  content: z.string().max(3000),
+  secondary: z.string().max(1000).optional(),
+  imageUrl: z.string().max(2048).optional(),
+  visible: z.boolean().optional(),
+  locked: z.boolean().optional(),
+  fontSize: z.number().int().min(8).max(96).optional(),
+  fontFamily: FontFamilySchema.optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  borderColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  borderRadius: z.number().int().min(0).max(48).optional(),
+  padding: z.number().int().min(0).max(100).optional(),
+  children: z.array(BlockElementSchema).max(40).optional(),
+}));
 const SectionSchema = z.object({
   id: z.string().min(1),
   type: z.enum(['navigation', 'hero', 'about', 'features', 'gallery', 'testimonial', 'pricing', 'faq', 'contact', 'footer']),
   title: z.string().max(300),
   body: z.string().max(3000),
+  eyebrow: z.string().max(120).optional(),
+  ctaLabel: z.string().max(120).optional(),
+  ctaUrl: z.string().max(2048).optional(),
   imageUrl: z.string().max(2048).optional(),
+  imageHint: z.string().max(300).optional(),
+  backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  textColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  borderColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
+  borderRadius: z.number().int().min(0).max(48).optional(),
+  fontSize: z.number().int().min(12).max(96).optional(),
+  fontFamily: FontFamilySchema.optional(),
   visible: z.boolean(),
   locked: z.boolean(),
   padding: z.number().int().min(10).max(120),
-  elements: z.array(z.object({
-    id: z.string().min(1), type: z.enum(['heading', 'text', 'image', 'button', 'container', 'columns', 'divider', 'spacer', 'icon', 'video', 'contact-form']),
-    content: z.string().max(3000), secondary: z.string().max(1000).optional(), imageUrl: z.string().max(2048).optional(),
-    visible: z.boolean().optional(), locked: z.boolean().optional(),
-    fontSize: z.number().int().min(8).max(96).optional(),
-    color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-    backgroundColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
-    padding: z.number().int().min(0).max(100).optional(),
-  })).max(60).optional(),
+  elements: z.array(BlockElementSchema).max(60).optional(),
 });
 const ProjectSchema = z.object({
   id: z.string().min(1),
@@ -61,10 +82,15 @@ const ProjectSchema = z.object({
     if (ids.has(section.id)) context.addIssue({ code: 'custom', message: 'Section IDs must be unique.', path: ['sections', index, 'id'] });
     ids.add(section.id);
     const elementIds = new Set<string>();
-    section.elements?.forEach((element, elementIndex) => {
-      if (elementIds.has(element.id)) context.addIssue({ code: 'custom', message: 'Element IDs must be unique within a section.', path: ['sections', index, 'elements', elementIndex, 'id'] });
+    const visit = (elements: BlockElement[], depth: number, path: (string | number)[]) => elements.forEach((element, elementIndex) => {
+      const elementPath = [...path, elementIndex];
+      if (elementIds.has(element.id)) context.addIssue({ code: 'custom', message: 'Element IDs must be unique within a section.', path: ['sections', index, 'elements', ...elementPath, 'id'] });
       elementIds.add(element.id);
+      if (element.children?.length && !['container', 'columns'].includes(element.type)) context.addIssue({ code: 'custom', message: 'Only containers and columns can hold nested elements.', path: ['sections', index, 'elements', ...elementPath, 'children'] });
+      if (depth >= 4 && element.children?.length) context.addIssue({ code: 'custom', message: 'Nested elements can be at most four levels deep.', path: ['sections', index, 'elements', ...elementPath, 'children'] });
+      if (element.children) visit(element.children, depth + 1, [...elementPath, 'children']);
     });
+    if (section.elements) visit(section.elements, 1, []);
   });
 });
 const ProjectListSchema = z.array(ProjectSchema).max(100);
@@ -121,6 +147,119 @@ const templates: Template[] = [
   ] },
 ];
 
+type IndustryTemplateInput = {
+  id: string; name: string; businessType: string; category: string; description: string;
+  colors: [string, string, string]; tone: string; navigation: string; hero: [string, string, string, string, string];
+  features: [string, string]; about: [string, string]; proof: [string, string]; contact: [string, string];
+  order: SectionType[];
+};
+function createIndustryTemplate(input: IndustryTemplateInput): Template {
+  const section = (type: SectionType, title: string, body: string, padding: number) => ({
+    type, title, body, visible: true, locked: false, padding,
+  });
+  const content: Record<SectionType, Omit<Section, 'id'>> = {
+    navigation: section('navigation', input.name, input.navigation, 18),
+    hero: {
+      ...section('hero', input.hero[1], input.hero[2], 58),
+      eyebrow: input.hero[0], ctaLabel: input.hero[3], ctaUrl: '#contact', imageHint: input.hero[4],
+      fontFamily: 'serif',
+    },
+    about: section('about', input.about[0], input.about[1], 52),
+    features: section('features', input.features[0], input.features[1], 48),
+    gallery: { ...section('gallery', 'A closer look', input.hero[4], 48), imageHint: input.hero[4] },
+    testimonial: section('testimonial', input.proof[0], input.proof[1], 44),
+    pricing: section('pricing', 'A clear next step', input.features[1], 48),
+    faq: section('faq', 'Good to know', input.contact[1], 44),
+    contact: { ...section('contact', input.contact[0], input.contact[1], 48), ctaLabel: input.hero[3], ctaUrl: '#contact' },
+    footer: section('footer', input.name, 'Made with care. Get in touch to learn more.', 24),
+  };
+  return {
+    id: input.id, name: input.name, category: input.category, description: input.description,
+    businessType: input.businessType, colors: input.colors, tone: input.tone,
+    sections: input.order.map(type => content[type]),
+  };
+}
+
+templates.push(
+  createIndustryTemplate({
+    id: 'industry-gym', name: 'Northstar Training', businessType: 'Gym', category: 'Fitness & wellness',
+    description: 'A confident, energetic page for a neighborhood gym with clear membership and class pathways.',
+    colors: ['#d06442', '#f3efe7', '#22251f'], tone: 'gold', navigation: 'Training    Classes    Membership',
+    hero: ['Train for your real life', 'Stronger, together.', 'Small-group strength coaching, smart programming, and a community that makes showing up the best part of your day.', 'Find your first class', 'A bright, welcoming strength-training floor with coaches and members'],
+    features: ['Coaching that meets you where you are.', 'Small-group strength · Personal coaching · Beginner-friendly plans · Flexible memberships'],
+    about: ['Built around people, not pressure.', 'Our coaches help you build a practice that fits real schedules and real bodies. Start with a conversation, move at your pace, and find your people along the way.'],
+    proof: ['“I feel stronger, and I actually look forward to coming in.”', '— Alex M., member for 2 years'],
+    contact: ['Your first session is on us.', 'Book a no-pressure intro and meet the coaches. We are at 412 Alder Street, open weekdays from 6am.'],
+    order: ['navigation', 'hero', 'features', 'about', 'testimonial', 'pricing', 'contact', 'footer'],
+  }),
+  createIndustryTemplate({
+    id: 'industry-restaurant', name: 'Juniper Table', businessType: 'Restaurant', category: 'Food & drink',
+    description: 'A warm, reservation-ready restaurant page with seasonal menu highlights and location details.',
+    colors: ['#a55d35', '#f7f1e6', '#30251e'], tone: 'gold', navigation: 'Menu    Our story    Find us',
+    hero: ['Seasonal cooking, generous tables', 'Come hungry. Leave happy.', 'A neighborhood kitchen serving ingredient-led plates, good wine, and the kind of welcome that makes dinner feel like an occasion.', 'Book a table', 'A candlelit restaurant dining room set for an evening service'],
+    features: ['From the market, with care.', 'Seasonal menus · Thoughtful wine list · Local ingredients · Weekend lunch'],
+    about: ['A little more time around the table.', 'Juniper is a place for a quick weeknight dinner or a long Sunday lunch. Our menu follows the seasons and our door is always open to the neighborhood.'],
+    proof: ['“Every dish felt thoughtful, and the whole evening felt easy.”', '— Priya S., recent guest'],
+    contact: ['We saved you a seat.', 'Find us at 26 Market Lane. Dinner Tuesday–Sunday, with lunch on weekends. Call (503) 555-0148 for groups.'],
+    order: ['navigation', 'hero', 'features', 'gallery', 'about', 'testimonial', 'contact', 'footer'],
+  }),
+  createIndustryTemplate({
+    id: 'industry-salon', name: 'Sunday Studio', businessType: 'Salon', category: 'Beauty & care',
+    description: 'A calm, appointment-focused studio page for independent stylists and salons.',
+    colors: ['#a46c69', '#f7f0ed', '#392f30'], tone: 'rose', navigation: 'Services    The studio    Book',
+    hero: ['Good hair, good energy', 'A little time for yourself.', 'Considered cuts and color in a relaxed neighborhood studio. Come as you are; leave feeling more like yourself.', 'Book an appointment', 'A sunlit hair studio with styling chairs, mirrors, and natural textures'],
+    features: ['Thoughtful care, from consultation to finish.', 'Cuts & styling · Dimensional color · Curl care · One-to-one consultations'],
+    about: ['Your chair, your pace.', 'We take the time to understand what you want and what works for your everyday. Our small team creates a comfortable space for great hair and honest advice.'],
+    proof: ['“The first time I left a salon feeling completely understood.”', '— Morgan R., client since 2022'],
+    contact: ['Ready for your next appointment?', 'Book online or visit 18 Willow Street. Tuesday–Saturday, with late appointments on Thursday.'],
+    order: ['navigation', 'hero', 'features', 'gallery', 'about', 'testimonial', 'contact', 'footer'],
+  }),
+  createIndustryTemplate({
+    id: 'industry-agency', name: 'Goodform Studio', businessType: 'Agency', category: 'Creative & professional services',
+    description: 'A crisp portfolio and inquiry page for a creative agency focused on strategy and measurable work.',
+    colors: ['#6358b7', '#f2f0fa', '#28243a'], tone: 'plum', navigation: 'Work    Services    Studio',
+    hero: ['Independent thinking, useful ideas', 'Make your next move matter.', 'We build brands and digital experiences for teams ready to do their best work. Clear strategy, strong craft, and no mystery process.', 'Start a project', 'A collaborative creative studio reviewing a brand campaign on a large screen'],
+    features: ['From a sharp question to work in the world.', 'Brand strategy · Identity systems · Digital products · Campaigns & content'],
+    about: ['Small team. Senior attention.', 'Goodform brings research, strategy, and design together in one close-knit team. You work directly with the people doing the work, from first brief to launch.'],
+    proof: ['“They made a complex repositioning feel clear and collaborative.”', '— Jamie Lee, founder'],
+    contact: ['Have a good challenge for us?', 'Tell us what you are working on. We will respond with a few useful questions and a clear next step.'],
+    order: ['navigation', 'hero', 'features', 'gallery', 'about', 'testimonial', 'contact', 'footer'],
+  }),
+  createIndustryTemplate({
+    id: 'industry-coaching', name: 'Clearpath Coaching', businessType: 'Coaching', category: 'Coaching & learning',
+    description: 'A reassuring coaching page with an approachable process, outcomes, and a clear introductory call.',
+    colors: ['#537a68', '#f0f4ed', '#263830'], tone: 'teal', navigation: 'My approach    Who I help    Book a call',
+    hero: ['A thoughtful space to move forward', 'Find your next clear step.', 'One-to-one coaching for people navigating change, leadership, and the decisions that shape what comes next.', 'Book a free conversation', 'A bright, quiet coaching room with two chairs and a small table'],
+    features: ['Support that turns insight into action.', 'Leadership coaching · Career transitions · Sustainable habits · Practical accountability'],
+    about: ['A partner in your thinking.', 'Coaching is not about having someone else’s answers. It is a focused, supportive space to hear yourself clearly, test new approaches, and build momentum that lasts.'],
+    proof: ['“I left every session with more clarity and one concrete next step.”', '— Sam T., coaching client'],
+    contact: ['Start with a 20-minute conversation.', 'We will talk about what you need and whether working together feels right. No pressure and no preparation required.'],
+    order: ['navigation', 'hero', 'about', 'features', 'testimonial', 'faq', 'contact', 'footer'],
+  }),
+  createIndustryTemplate({
+    id: 'industry-real-estate', name: 'Marlow Property Group', businessType: 'Real Estate', category: 'Real estate',
+    description: 'A polished real-estate introduction built around local expertise, seller support, and buyer conversations.',
+    colors: ['#4e716c', '#f1f3ed', '#263532'], tone: 'teal', navigation: 'Buy    Sell    Neighborhoods',
+    hero: ['Local knowledge. Personal attention.', 'Find a place to call yours.', 'A steady, thoughtful guide for buying and selling homes across the city and the neighborhoods just beyond it.', 'Talk with a local agent', 'A welcoming modern home with a landscaped front garden in late-afternoon light'],
+    features: ['Good decisions start with the right advice.', 'Buyer representation · Home valuation · Staging guidance · Neighborhood expertise'],
+    about: ['A local team, here for the long view.', 'Real estate is personal. We listen first, share honest advice, and keep the details moving so you can focus on the decision that feels right for you.'],
+    proof: ['“We always knew what was happening and what our options were.”', '— Taylor and Chris, recent clients'],
+    contact: ['Let’s talk about what home means to you.', 'Tell us whether you are buying, selling, or still exploring. We will help you plan a useful next step.'],
+    order: ['navigation', 'hero', 'features', 'about', 'testimonial', 'gallery', 'contact', 'footer'],
+  }),
+  createIndustryTemplate({
+    id: 'industry-saas', name: 'Relay Workspace', businessType: 'SaaS', category: 'Software & technology',
+    description: 'A clear product-led SaaS page that explains the benefit, demonstrates the workflow, and invites a trial.',
+    colors: ['#4a68ce', '#f2f4fb', '#252b3b'], tone: 'blue', navigation: 'Product    How it works    Pricing',
+    hero: ['Less busywork. More good work.', 'Your team, in sync.', 'Relay brings projects, decisions, and the next action into one calm workspace, so your team can spend less time chasing updates.', 'Try Relay free', 'A clean project dashboard with a team reviewing priorities together'],
+    features: ['Everything your team needs to keep moving.', 'Shared project views · Clear ownership · Decisions with context · Progress you can trust'],
+    about: ['A simpler way to work together.', 'Relay replaces scattered updates with one shared picture of the work. Start with the projects you have today, then make the process your own.'],
+    proof: ['“We got our Mondays back. Everyone knows what matters and what is next.”', '— Dana P., operations lead'],
+    contact: ['See what a calmer week could look like.', 'Start with a free workspace. No credit card required. Invite your team when you are ready.'],
+    order: ['navigation', 'hero', 'features', 'about', 'testimonial', 'pricing', 'faq', 'contact', 'footer'],
+  }),
+);
+
 const sectionLabels: Record<SectionType, string> = { navigation: 'Navigation', hero: 'Hero', about: 'About', features: 'Highlights', gallery: 'Gallery', testimonial: 'Testimonial', pricing: 'Pricing', faq: 'FAQ', contact: 'Contact', footer: 'Footer' };
 const sectionDefaults: Record<SectionType, [string, string]> = {
   navigation: ['Your business', 'Services    About    Contact'],
@@ -144,13 +283,112 @@ const stylePalettes: Record<string, [string, string, string]> = {
 };
 
 const uuid = () => globalThis.crypto?.randomUUID?.() ?? `nx-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+function freshElementIds(element: BlockElement): BlockElement {
+  return { ...element, id: uuid(), children: element.children?.map(freshElementIds) };
+}
+function findElement(elements: BlockElement[] | undefined, id: string): BlockElement | undefined {
+  for (const element of elements || []) {
+    if (element.id === id) return element;
+    const nested = findElement(element.children, id);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+function updateElementTree(elements: BlockElement[], id: string, patch: Partial<BlockElement>): BlockElement[] {
+  return elements.map(element => element.id === id
+    ? { ...element, ...patch }
+    : element.children ? { ...element, children: updateElementTree(element.children, id, patch) } : element);
+}
+function removeElementTree(elements: BlockElement[], id: string): { elements: BlockElement[]; removed?: BlockElement } {
+  const direct = elements.findIndex(element => element.id === id);
+  if (direct >= 0) {
+    const next = [...elements];
+    const [removed] = next.splice(direct, 1);
+    return { elements: next, removed };
+  }
+  for (let index = 0; index < elements.length; index++) {
+    const parent = elements[index];
+    if (!parent.children?.length) continue;
+    const result = removeElementTree(parent.children, id);
+    if (result.removed) {
+      const next = [...elements];
+      next[index] = { ...parent, children: result.elements };
+      return { elements: next, removed: result.removed };
+    }
+  }
+  return { elements };
+}
+function insertBeforeElementTree(elements: BlockElement[], targetId: string, block: BlockElement): BlockElement[] | null {
+  const direct = elements.findIndex(element => element.id === targetId);
+  if (direct >= 0) {
+    const next = [...elements];
+    next.splice(direct, 0, block);
+    return next;
+  }
+  for (let index = 0; index < elements.length; index++) {
+    const parent = elements[index];
+    if (!parent.children?.length) continue;
+    const children = insertBeforeElementTree(parent.children, targetId, block);
+    if (children) {
+      const next = [...elements];
+      next[index] = { ...parent, children };
+      return next;
+    }
+  }
+  return null;
+}
+function insertAfterElementTree(elements: BlockElement[], targetId: string, block: BlockElement): BlockElement[] | null {
+  const direct = elements.findIndex(element => element.id === targetId);
+  if (direct >= 0) {
+    const next = [...elements];
+    next.splice(direct + 1, 0, block);
+    return next;
+  }
+  for (let index = 0; index < elements.length; index++) {
+    const parent = elements[index];
+    if (!parent.children?.length) continue;
+    const children = insertAfterElementTree(parent.children, targetId, block);
+    if (children) {
+      const next = [...elements];
+      next[index] = { ...parent, children };
+      return next;
+    }
+  }
+  return null;
+}
+function moveSiblingElement(elements: BlockElement[], id: string, direction: -1 | 1): BlockElement[] | null {
+  const index = elements.findIndex(element => element.id === id);
+  if (index >= 0) {
+    const target = elements[index + direction];
+    if (!target || elements[index].locked || target.locked) return null;
+    const next = [...elements];
+    [next[index], next[index + direction]] = [next[index + direction], next[index]];
+    return next;
+  }
+  for (let parentIndex = 0; parentIndex < elements.length; parentIndex++) {
+    const parent = elements[parentIndex];
+    if (!parent.children?.length) continue;
+    const children = moveSiblingElement(parent.children, id, direction);
+    if (children) {
+      const next = [...elements];
+      next[parentIndex] = { ...parent, children };
+      return next;
+    }
+  }
+  return null;
+}
 function readProjects(): Project[] {
   const value = localStorage.getItem(STORAGE_KEY);
   return value ? ProjectListSchema.parse(JSON.parse(value)) as Project[] : [];
 }
 function createProject(template: Template, name: string, businessType: string, prompt: string, style?: string): Project {
   const colors = stylePalettes[style || ''] ?? template.colors;
-  return ProjectSchema.parse({ id: uuid(), name, businessType, prompt, templateId: template.id, theme: { primaryColor: colors[0], backgroundColor: colors[1], textColor: colors[2] }, sections: template.sections.map(s => ({ ...s, id: uuid() })), updatedAt: new Date().toISOString() }) as Project;
+  return ProjectSchema.parse({
+    id: uuid(), name, businessType, prompt, templateId: template.id,
+    theme: { primaryColor: colors[0], backgroundColor: colors[1], textColor: colors[2] },
+    sections: template.sections.map(s => ({ ...s, id: uuid(), elements: s.elements?.map(freshElementIds) })),
+    updatedAt: new Date().toISOString(),
+  }) as Project;
 }
 function downloadFile(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type });
@@ -160,6 +398,19 @@ function downloadFile(filename: string, content: string, type: string) {
 }
 function safeName(name: string) { return name.trim().replace(/[^\w-]+/g, '-').replace(/^-|-$/g, '').toLowerCase() || 'nexogen-page'; }
 function escapeHtml(text: string) { return text.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char] || char)); }
+function safeUrl(value: string, image = false) {
+  const trimmed = value.trim();
+  if (!trimmed || /[\u0000-\u001f]/.test(trimmed)) return '';
+  if (/^(#|\/(?!\/)|\.\/|\.\.\/)/.test(trimmed)) return trimmed;
+  try {
+    const parsed = new URL(trimmed);
+    const allowed = image ? ['https:', 'http:'] : ['https:', 'http:', 'mailto:', 'tel:'];
+    return allowed.includes(parsed.protocol) ? trimmed : '';
+  } catch { return ''; }
+}
+function fontStack(font: FontFamily | undefined) {
+  return font === 'serif' ? 'Georgia,serif' : font === 'mono' ? 'ui-monospace,SFMono-Regular,monospace' : 'system-ui,-apple-system,sans-serif';
+}
 
 function AppFrame({ children }: { children: ReactNode }) {
   const [location] = useLocation();
@@ -181,11 +432,14 @@ function Home() {
   const [businessName, setBusinessName] = useState('');
   const [description, setDescription] = useState('');
   const [style, setStyle] = useState('Friendly local business');
-  const [templateId, setTemplateId] = useState('atelier');
+  const [templateId, setTemplateId] = useState('');
   const [error, setError] = useState('');
+  const recommendedTemplate = templates.find(item => item.businessType === business) ??
+    (business === 'Dental clinic' ? templates.find(item => item.id === 'northline') : undefined) ??
+    templates[0];
   function start() {
     if (!business || !description.trim()) { setError('Choose a business type and add a short description to start.'); return; }
-    const template = templates.find(item => item.id === templateId) ?? templates[0];
+    const template = templates.find(item => item.id === (templateId || recommendedTemplate.id)) ?? recommendedTemplate;
     const businessType = business === 'Other' && businessName.trim() ? businessName.trim() : business;
     const name = businessName.trim() || businessType;
     const project = createProject(template, `${name} — demo`, businessType, `${description.trim()} Style: ${style}.`, style);
@@ -195,8 +449,11 @@ function Home() {
   const examples = [
     { title: 'A neighborhood gym', business: 'Gym', description: 'Small-group strength training for all levels, with friendly coaches and flexible memberships.' },
     { title: 'A neighborhood restaurant', business: 'Restaurant', description: 'Seasonal plates, a welcoming dining room, and an easy way to book a table.' },
+    { title: 'A family dental clinic', business: 'Dental clinic', description: 'Gentle family dentistry with clear explanations, preventive care, and easy online appointments.' },
     { title: 'A creative agency', business: 'Agency', description: 'Brand strategy and digital work for ambitious independent businesses.' },
     { title: 'A modern salon', business: 'Salon', description: 'Thoughtful cuts and color in a relaxed studio, with an easy online booking experience.' },
+    { title: 'A coaching practice', business: 'Coaching', description: 'One-to-one support for people navigating leadership, career changes, and important decisions.' },
+    { title: 'A local real-estate team', business: 'Real Estate', description: 'Local advice and personal support for people buying or selling homes in the neighborhood.' },
     { title: 'A growing SaaS company', business: 'SaaS', description: 'A clear product story that helps growing teams understand the value and get started.' },
   ];
   return <AppFrame><main className="page"><div className="home-layout">
@@ -210,12 +467,12 @@ function Home() {
     <section className="form-card" aria-labelledby="start-title">
       <h2 id="start-title" className="card-title">Start with a local demo</h2>
       <p className="card-subtitle">A starter page will open in the editor. You stay in control of every word.</p>
-       <div className="field"><label htmlFor="business-type">What kind of business?</label><select id="business-type" value={business} onChange={e => setBusiness(e.target.value)} data-testid="select-business-type"><option value="">Choose a business type</option>{['Gym', 'Restaurant', 'Salon', 'Coaching', 'Agency', 'Portfolio', 'Real Estate', 'SaaS', 'Other'].map(type => <option key={type}>{type}</option>)}</select></div>
+        <div className="field"><label htmlFor="business-type">What kind of business?</label><select id="business-type" value={business} onChange={e => setBusiness(e.target.value)} data-testid="select-business-type"><option value="">Choose a business type</option>{['Gym', 'Restaurant', 'Dental clinic', 'Salon', 'Coaching', 'Agency', 'Portfolio', 'Real Estate', 'SaaS', 'Other'].map(type => <option key={type}>{type}</option>)}</select></div>
        <div className="field"><label htmlFor="business-name">Business name <span className="optional-label">Optional</span></label><input id="business-name" value={businessName} onChange={e => setBusinessName(e.target.value)} placeholder="e.g. Northstar Fitness" data-testid="input-business-name" /></div>
       <div className="field"><label htmlFor="business-description">Describe what you do</label><textarea id="business-description" value={description} onChange={e => setDescription(e.target.value)} placeholder="A couple of details about your business, your customers, or what makes it special." data-testid="input-business-description" /></div>
       <div className="example-row">{examples.map(ex => <button key={ex.title} className="chip-button" type="button" onClick={() => { setBusiness(ex.business); setBusinessName(''); setDescription(ex.description); }} data-testid={`example-${ex.business.toLowerCase().replaceAll(' ', '-')}`}>Try: {ex.title}</button>)}</div>
        <div className="field"><label htmlFor="style-choice">Page style</label><select id="style-choice" value={style} onChange={e => setStyle(e.target.value)} data-testid="select-style"><option>Minimal</option><option>Premium</option><option>Modern corporate</option><option>Bold and energetic</option><option>Elegant</option><option>Creative</option><option>Friendly local business</option></select></div>
-      <div className="field"><label htmlFor="template-choice">Start from a template</label><select id="template-choice" value={templateId} onChange={e => setTemplateId(e.target.value)} data-testid="select-template">{templates.map(t => <option value={t.id} key={t.id}>{t.name} · {t.category}</option>)}</select></div>
+       <div className="field"><label htmlFor="template-choice">Start from a template</label><select id="template-choice" value={templateId || recommendedTemplate.id} onChange={e => setTemplateId(e.target.value)} data-testid="select-template">{templates.map(t => <option value={t.id} key={t.id}>{t.name} · {t.category}{t.id === recommendedTemplate.id ? ' · Recommended' : ''}</option>)}</select></div>
       {error && <div className="status-box" role="alert" style={{ marginBottom: 13, borderColor: '#704348', color: '#ffb0aa' }}>{error}</div>}
       <button className="primary-button wide" onClick={start} data-testid="button-start-demo">Create my local demo <ArrowRight size={15} /></button>
       <p className="template-hint">This is a product demo, not AI generation. Publishing and hosting are not connected.</p>
@@ -236,7 +493,7 @@ function TemplatesPage() {
     const all = readProjects(); localStorage.setItem(STORAGE_KEY, JSON.stringify([project, ...all])); setLocation(`/workspace/${project.id}`);
   }
   return <AppFrame><main className="page">
-    <div className="section-heading"><div><div className="eyebrow">Starter library · 06 templates</div><h1>Start with a strong first draft.</h1><p>Each template is a structured local page you can reshape in the editor.</p></div><span className="demo-pill">Demo templates</span></div>
+     <div className="section-heading"><div><div className="eyebrow">Starter library · {String(templates.length).padStart(2, '0')} templates</div><h1>Start with a strong first draft.</h1><p>Industry-specific, editable demos for local businesses. AI generation is not connected.</p></div><span className="demo-pill">Demo templates</span></div>
     <div className="template-grid">{templates.map(t => <TemplateCard key={t.id} template={t} onUse={useTemplate} />)}</div>
   </main></AppFrame>;
 }
@@ -290,42 +547,72 @@ function SettingsPage() {
 }
 
 function renderHtml(project: Project) {
-  const sections = project.sections.filter(s => s.visible).map(section => {
+  const imageVisual = (section: Section, className: string) => {
+    const imageUrl = safeUrl(section.imageUrl || '', true);
+    return imageUrl
+      ? `<img class="${className}" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(section.imageHint || section.title)}">`
+      : `<div class="${className} image-placeholder" role="img" aria-label="${escapeHtml(section.imageHint || 'Replace with a suitable business photo')}"><span>Replaceable image</span><small>${escapeHtml(section.imageHint || 'Add your own image URL in the editor')}</small></div>`;
+  };
+  const renderBlock = (block: BlockElement): string => {
+    if (block.visible === false) return '';
+    const content = escapeHtml(block.content), secondary = escapeHtml(block.secondary || '');
+    const declarations = [
+      block.fontSize ? `font-size:${block.fontSize}px` : '',
+      block.fontFamily ? `font-family:${fontStack(block.fontFamily)}` : '',
+      block.color ? `color:${block.color}` : '',
+      block.backgroundColor ? `background-color:${block.backgroundColor}` : '',
+      block.borderColor ? `border:1px solid ${block.borderColor}` : '',
+      block.borderRadius !== undefined ? `border-radius:${block.borderRadius}px` : '',
+      block.padding !== undefined ? `padding:${block.padding}px` : '',
+    ].filter(Boolean).join(';');
+    const style = declarations ? ` style="${escapeHtml(declarations)}"` : '';
+    const children = (block.children || []).map(renderBlock).join('');
+    if (block.type === 'heading') return `<h2${style}>${content}</h2>${children}`;
+    if (block.type === 'text') return `<p${style}>${content}</p>${children}`;
+    if (block.type === 'image') {
+      const imageUrl = safeUrl(block.imageUrl || '', true);
+      return imageUrl
+        ? `<img src="${escapeHtml(imageUrl)}" alt="${content}"${style}>${children}`
+        : `<div class="image-note"${style}><span>Replaceable image</span><small>${content || 'Add an image URL in the editor'}</small></div>${children}`;
+    }
+    if (block.type === 'button') return `<a class="cta"${style} href="${escapeHtml(safeUrl(block.secondary || '#contact') || '#contact')}">${content}</a>${children}`;
+    if (block.type === 'divider') return `<hr${style}>${children}`;
+    if (block.type === 'spacer') return `<div aria-hidden="true" style="height:${block.padding ?? 40}px"></div>${children}`;
+    if (block.type === 'columns') return `<div class="block-columns"${style}><p>${content}</p><p>${secondary}</p>${children}</div>`;
+    if (block.type === 'video') return `<a class="video-link"${style} href="${escapeHtml(safeUrl(block.secondary || '#') || '#')}">${content || 'Watch our introduction'}</a>${children}`;
+    if (block.type === 'contact-form') return `<div class="form-preview"${style}><p>This sample form needs a form service before it can receive submissions.</p><form><label>Name <input name="name" autocomplete="name"></label><label>Email <input name="email" type="email" autocomplete="email"></label><button type="button" disabled>Connect a form provider</button></form>${children}</div>`;
+    return `<div class="${block.type === 'container' ? 'content-container' : 'content-container'}"${style}>${content}${children}</div>`;
+  };
+  const sections = project.sections.filter(section => section.visible).map(section => {
     const title = escapeHtml(section.title), body = escapeHtml(section.body);
-    const blocks = (section.elements || []).filter(block => block.visible !== false).map(block => {
-      const content = escapeHtml(block.content), secondary = escapeHtml(block.secondary || '');
-      const declarations = [
-        block.fontSize ? `font-size:${block.fontSize}px` : '',
-        block.color ? `color:${block.color}` : '',
-        block.backgroundColor ? `background-color:${block.backgroundColor}` : '',
-        block.padding !== undefined ? `padding:${block.padding}px` : '',
-      ].filter(Boolean).join(';');
-      const style = declarations ? ` style="${declarations}"` : '';
-      if (block.type === 'heading') return `<h2${style}>${content}</h2>`;
-      if (block.type === 'text') return `<p${style}>${content}</p>`;
-      if (block.type === 'image') return block.imageUrl
-        ? `<img src="${escapeHtml(block.imageUrl)}" alt="${content}" style="max-width:100%;height:auto;${declarations}">`
-        : `<div class="image-note"${style}>${content} · Add an image URL in your editor</div>`;
-      if (block.type === 'button') return `<a class="cta"${style} href="${escapeHtml(block.secondary || '#contact')}">${content}</a>`;
-      if (block.type === 'divider') return `<hr${style}>`;
-      if (block.type === 'spacer') return `<div aria-hidden="true" style="height:${block.padding ?? 40}px"></div>`;
-      if (block.type === 'columns') return `<div class="features"${style}><p>${content}</p><p>${secondary}</p></div>`;
-      if (block.type === 'video') return `<a class="video-link"${style} href="${escapeHtml(block.secondary || '#')}">${content || 'Watch our introduction'}</a>`;
-      if (block.type === 'contact-form') return `<div class="form-preview"${style}><p>This sample form needs a form service before it can receive submissions.</p><form><label>Name <input name="name" autocomplete="name"></label><label>Email <input name="email" type="email" autocomplete="email"></label><button type="button" disabled>Connect a form provider</button></form></div>`;
-      return `<div class="content-container"${style}>${content}</div>`;
-    }).join('\n');
+    const headingStyle = [section.fontSize ? `font-size:${section.fontSize}px` : '', section.fontFamily ? `font-family:${fontStack(section.fontFamily)}` : ''].filter(Boolean).join(';');
+    const style = [
+      `padding-top:${section.padding}px`, `padding-bottom:${section.padding}px`,
+      section.backgroundColor ? `background-color:${section.backgroundColor}` : '',
+      section.textColor ? `color:${section.textColor}` : '',
+      section.borderColor ? `border:1px solid ${section.borderColor}` : '',
+      section.borderRadius !== undefined ? `border-radius:${section.borderRadius}px` : '',
+    ].filter(Boolean).join(';');
+    const attrs = ` style="${escapeHtml(style)}"`;
+    const eyebrow = section.eyebrow ? `<div class="eyebrow">${escapeHtml(section.eyebrow)}</div>` : '';
+    const blocks = (section.elements || []).map(renderBlock).join('');
     const extra = blocks ? `<div class="custom-elements">${blocks}</div>` : '';
-    if (section.type === 'navigation') return `<header class="nav"><strong>${title}</strong><span>${body}</span>${extra}</header>`;
-    if (section.type === 'hero') return `<section class="hero"><h1>${title}</h1><p>${body}</p><a class="cta" href="#contact">Get in touch</a>${extra}</section>`;
-    if (section.type === 'features') return `<section class="features"><div><h2>${title}</h2><p>${body}</p>${extra}</div><div class="visual"></div></section>`;
-    if (section.type === 'testimonial') return `<section class="quote"><h2>${title}</h2><small>${body}</small>${extra}</section>`;
-    if (section.type === 'contact') return `<section class="contact" id="contact"><h2>${title}</h2><p>${body}</p>${extra}</section>`;
-    if (section.type === 'footer') return `<footer>${title} · ${body}${extra}</footer>`;
-    return `<section><h2>${title}</h2><p>${body}</p>${extra}</section>`;
+    if (section.type === 'navigation') return `<header class="nav"${attrs}><a href="#top" class="brand">${title}</a><span>${body}</span></header>`;
+    if (section.type === 'hero') {
+      const cta = escapeHtml(section.ctaLabel || 'Get in touch');
+      const href = escapeHtml(safeUrl(section.ctaUrl || '#contact') || '#contact');
+      return `<section class="hero" id="top"${attrs}><div class="hero-copy">${eyebrow}<h1 style="${headingStyle}">${title}</h1><p>${body}</p><a class="cta" href="${href}">${cta}</a></div>${imageVisual(section, 'hero-visual')}${extra}</section>`;
+    }
+    if (section.type === 'features') return `<section class="features"${attrs}><div>${eyebrow}<h2 style="${headingStyle}">${title}</h2><p>${body}</p>${extra}</div><div class="visual" aria-hidden="true"></div></section>`;
+    if (section.type === 'gallery') return `<section class="gallery"${attrs}><div><h2 style="${headingStyle}">${title}</h2><p>${body}</p></div>${imageVisual(section, 'gallery-visual')}${extra}</section>`;
+    if (section.type === 'testimonial') return `<section class="quote"${attrs}><h2 style="${headingStyle}">${title}</h2><small>${body}</small>${extra}</section>`;
+    if (section.type === 'contact') return `<section class="contact" id="contact"${attrs}><h2 style="${headingStyle}">${title}</h2><p>${body}</p>${section.ctaLabel ? `<a class="cta" href="${escapeHtml(safeUrl(section.ctaUrl || '#contact') || '#contact')}">${escapeHtml(section.ctaLabel)}</a>` : ''}${extra}</section>`;
+    if (section.type === 'footer') return `<footer${attrs}><strong>${title}</strong><span>${body}</span>${extra}</footer>`;
+    return `<section class="content-section section-${section.type}"${attrs}><h2 style="${headingStyle}">${title}</h2><p>${body}</p>${extra}</section>`;
   }).join('\n');
   return `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escapeHtml(project.name)}</title>
-<style>*{box-sizing:border-box}body{margin:0;background:${project.theme.backgroundColor};color:${project.theme.textColor};font:16px/1.6 system-ui,-apple-system,sans-serif}h1,h2{font-family:Georgia,serif;line-height:1.08}section{padding:56px max(8%,calc((100% - 1000px)/2))}h2{font-size:34px;margin:0 0 12px}p{max-width:680px;opacity:.78}.nav{display:flex;justify-content:space-between;padding:20px 8%;border-bottom:1px solid #0002}.hero{min-height:400px;display:flex;flex-direction:column;justify-content:center;background:linear-gradient(130deg,${project.theme.primaryColor},${project.theme.backgroundColor});color:white}.hero h1{font-size:clamp(42px,7vw,76px);max-width:850px;margin:0 0 18px}.hero p{font-size:18px;color:#fff;max-width:650px}.cta{align-self:flex-start;background:white;color:#263142;padding:11px 17px;text-decoration:none;border-radius:3px;font-weight:700}.features{display:grid;grid-template-columns:1fr 1fr;gap:35px;align-items:center}.visual{height:220px;border-radius:6px;background:linear-gradient(145deg,${project.theme.primaryColor},${project.theme.textColor})}.quote{border-left:4px solid ${project.theme.primaryColor};margin:35px 8%;padding:15px 28px}.quote h2{font-size:29px}.quote small{opacity:.65}.contact{background:${project.theme.textColor};color:${project.theme.backgroundColor}}footer{padding:26px 8%;border-top:1px solid #0002;opacity:.7;font-size:13px}@media(max-width:650px){.features{grid-template-columns:1fr}.nav span{display:none}}</style></head><body>${sections}</body></html>`;
+<style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:${project.theme.backgroundColor};color:${project.theme.textColor};font:16px/1.6 system-ui,-apple-system,sans-serif}h1,h2{font-family:Georgia,serif;line-height:1.08}p{max-width:680px;opacity:.8}.eyebrow{margin-bottom:16px;text-transform:uppercase;letter-spacing:.16em;font-size:11px;font-weight:700;opacity:.8}.nav{display:flex;align-items:center;justify-content:space-between;gap:24px;padding:18px max(6%,calc((100% - 1160px)/2));border-bottom:1px solid #0002}.nav .brand{font:700 18px Georgia,serif;color:inherit;text-decoration:none}.nav span{font-size:13px;opacity:.7;white-space:pre-line}.hero{min-height:520px;display:grid;grid-template-columns:1.15fr .85fr;align-items:center;gap:48px;padding-left:max(6%,calc((100% - 1160px)/2));padding-right:max(6%,calc((100% - 1160px)/2));background:linear-gradient(130deg,${project.theme.primaryColor},color-mix(in srgb,${project.theme.primaryColor},${project.theme.backgroundColor} 38%));color:white}.hero h1{font-size:clamp(42px,6vw,76px);max-width:740px;margin:0 0 18px;letter-spacing:-.04em}.hero p{font-size:17px;color:#ffffffed;max-width:580px;margin:0 0 26px}.hero-visual,.gallery-visual{display:flex;min-height:300px;width:100%;object-fit:cover;align-items:center;justify-content:center;border-radius:18px;background:linear-gradient(145deg,color-mix(in srgb,${project.theme.primaryColor},white 22%),color-mix(in srgb,${project.theme.primaryColor},${project.theme.textColor} 48%));box-shadow:0 18px 55px #0002}.image-placeholder{flex-direction:column;gap:8px;padding:24px;text-align:center;color:inherit}.image-placeholder small{max-width:280px;font-size:12px;opacity:.75}.cta{display:inline-flex;align-items:center;justify-content:center;background:${project.theme.textColor};color:${project.theme.backgroundColor};padding:13px 19px;text-decoration:none;border-radius:999px;font-size:13px;font-weight:700}.features,.gallery{display:grid;grid-template-columns:1fr 1fr;gap:50px;align-items:center;padding-left:max(6%,calc((100% - 1080px)/2));padding-right:max(6%,calc((100% - 1080px)/2))}.features h2,.gallery h2,.content-section h2{font-size:clamp(30px,4vw,48px);letter-spacing:-.035em;margin:0 0 16px}.features p,.gallery p,.content-section p{line-height:1.8}.visual{min-height:260px;border-radius:16px;background:radial-gradient(circle at 65% 30%,#fff8 0 3%,transparent 4%),linear-gradient(145deg,color-mix(in srgb,${project.theme.primaryColor},white 24%),color-mix(in srgb,${project.theme.primaryColor},${project.theme.textColor} 45%))}.gallery-visual{min-height:280px}.content-section{padding-left:max(6%,calc((100% - 1000px)/2));padding-right:max(6%,calc((100% - 1000px)/2))}.section-pricing,.section-faq{background:color-mix(in srgb,${project.theme.backgroundColor},${project.theme.primaryColor} 8%)}.quote{max-width:1000px;margin:42px auto;border-left:4px solid ${project.theme.primaryColor};padding:18px 34px}.quote h2{font-size:clamp(23px,3vw,34px);margin:0}.quote small{display:block;margin-top:16px;opacity:.65}.contact{padding-left:max(6%,calc((100% - 1000px)/2));padding-right:max(6%,calc((100% - 1000px)/2));background:${project.theme.textColor};color:${project.theme.backgroundColor}}.contact h2{font-size:clamp(32px,4vw,48px)}footer{display:flex;justify-content:space-between;gap:20px;padding:26px 6%;border-top:1px solid #0002;font-size:13px}footer span{opacity:.72}.custom-elements{margin-top:22px}.custom-elements>*{max-width:100%}.image-note{display:grid;gap:8px;padding:18px;border:1px dashed #8888;border-radius:10px}.image-note small{opacity:.7}.block-columns{display:grid;grid-template-columns:1fr 1fr;gap:18px}.content-container{padding:20px;border:1px solid #8886;border-radius:12px}.form-preview form{display:grid;gap:12px}.form-preview label{display:grid;gap:5px}.form-preview input{padding:10px}.theme-industry-saas .hero{background:radial-gradient(circle at 82% 18%,#fff3,transparent 28%),linear-gradient(130deg,${project.theme.primaryColor},color-mix(in srgb,${project.theme.primaryColor},${project.theme.backgroundColor} 34%))}.theme-industry-restaurant .hero{background:linear-gradient(110deg,#261a16dd,#261a1644),linear-gradient(135deg,${project.theme.primaryColor},${project.theme.backgroundColor})}.theme-industry-salon .hero{background:linear-gradient(135deg,${project.theme.backgroundColor},${project.theme.primaryColor});color:${project.theme.textColor}}.theme-industry-salon .hero p{color:inherit}.theme-industry-agency .hero{background:linear-gradient(130deg,${project.theme.textColor},${project.theme.primaryColor});color:white}.theme-industry-coaching .hero{background:linear-gradient(125deg,${project.theme.backgroundColor},color-mix(in srgb,${project.theme.primaryColor},white 52%))}.theme-industry-coaching .hero p{color:${project.theme.textColor}}.theme-industry-real-estate .hero{background:linear-gradient(110deg,#1b2926dd,#1b292655),linear-gradient(130deg,${project.theme.primaryColor},${project.theme.backgroundColor});color:white}.theme-northline .hero{background:linear-gradient(130deg,${project.theme.primaryColor},${project.theme.backgroundColor});color:${project.theme.textColor}}.theme-northline .hero p{color:${project.theme.textColor}}@media(max-width:720px){.hero{grid-template-columns:1fr;gap:28px;min-height:0;padding-top:64px;padding-bottom:54px}.hero-visual{min-height:210px}.features,.gallery{grid-template-columns:1fr;gap:24px}section{padding-left:7%;padding-right:7%}.nav span{display:none}.quote{margin:28px 7%;padding-left:20px}footer{flex-direction:column;gap:6px}}</style></head><body><main class="theme-${escapeHtml(safeName(project.templateId))}">${sections}</main></body></html>`;
 }
 
 function ProjectEditor({ projectId }: { projectId: string }) {
@@ -352,6 +639,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
   const dragBlockId = useRef('');
   const dragBlockSectionId = useRef('');
   const dragType = useRef<SectionType | ''>('');
+  const dragNewElementType = useRef<BlockType | ''>('');
   const canvasAreaRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (project && !selected && project.sections[0]) setSelected(project.sections[0].id);
@@ -372,7 +660,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
     return () => window.clearTimeout(timer);
   }, [project]);
   const selectedSection = project?.sections.find(s => s.id === selected);
-  const selectedBlock = selectedSection?.elements?.find(item => item.id === selectedBlockId);
+  const selectedBlock = findElement(selectedSection?.elements, selectedBlockId);
   const activeTemplate = useMemo(() => templates.find(t => t.id === project?.templateId), [project?.templateId]);
   function commit(next: Project, track = true) {
     if (!project) return;
@@ -391,38 +679,54 @@ function ProjectEditor({ projectId }: { projectId: string }) {
     if (current?.locked && Object.keys(patch).some(key => key !== 'visible' && key !== 'locked')) return;
     commit({ ...project, sections: project.sections.map(s => s.id === id ? { ...s, ...patch } : s) });
   }
-  function addElement(type: BlockType) {
-    if (!project || !selectedSection || selectedSection.locked) return;
+  function makeElement(type: BlockType): BlockElement {
     const labels: Record<BlockType, string> = { heading: 'Your new heading', text: 'Add a little more detail about your business.', image: 'Describe this image', button: 'Get started', container: 'Content container', columns: 'First column content', divider: 'Divider', spacer: 'Spacer', icon: '★', video: 'Watch our introduction', 'contact-form': 'Contact us' };
-    const block: BlockElement = { id: uuid(), type, content: labels[type], visible: true, locked: false, ...(type === 'columns' ? { secondary: 'Second column content' } : {}), ...(type === 'image' ? { imageUrl: '' } : {}) };
-    patchSection(selectedSection.id, { elements: [...(selectedSection.elements || []), block] });
+    return { id: uuid(), type, content: labels[type], visible: true, locked: false, ...(type === 'columns' ? { secondary: 'Second column content' } : {}), ...(type === 'image' ? { imageUrl: '' } : {}) };
+  }
+  function insertElement(sectionId: string, type: BlockType, beforeId?: string, containerId?: string) {
+    const section = project?.sections.find(item => item.id === sectionId);
+    if (!section || section.locked) return;
+    const block = makeElement(type);
+    let elements = [...(section.elements || [])];
+    if (containerId) {
+      const container = findElement(elements, containerId);
+      if (!container || container.locked || !['container', 'columns'].includes(container.type)) return;
+      elements = updateElementTree(elements, containerId, { children: [...(container.children || []), block] });
+    } else if (beforeId) {
+      elements = insertBeforeElementTree(elements, beforeId, block) ?? [...elements, block];
+    } else {
+      elements.push(block);
+    }
+    patchSection(sectionId, { elements });
     setSelectedBlockId(block.id);
     setMobileSheet('properties');
     setInspectorOpen(true);
     setRightCollapsed(false);
+    dragNewElementType.current = '';
+    setNotice(`${type.replace('-', ' ')} added.`);
+  }
+  function addElement(type: BlockType) {
+    if (!selectedSection) return;
+    insertElement(selectedSection.id, type);
   }
   function patchElement(blockId: string, patch: Partial<BlockElement>) {
     if (!selectedSection || selectedSection.locked) return;
-    const current = selectedSection.elements?.find(item => item.id === blockId);
+    const current = findElement(selectedSection.elements, blockId);
     if (current?.locked && Object.keys(patch).some(key => key !== 'locked' && key !== 'visible')) return;
-    patchSection(selectedSection.id, { elements: (selectedSection.elements || []).map(item => item.id === blockId ? { ...item, ...patch } : item) });
+    patchSection(selectedSection.id, { elements: updateElementTree(selectedSection.elements || [], blockId, patch) });
   }
   function patchElementInSection(sectionId: string, blockId: string, patch: Partial<BlockElement>) {
     const section = project?.sections.find(item => item.id === sectionId);
-    const current = section?.elements?.find(item => item.id === blockId);
+    const current = findElement(section?.elements, blockId);
     if (!section || !current || section.locked) return;
     if (current.locked && Object.keys(patch).some(key => key !== 'locked' && key !== 'visible')) return;
-    patchSection(sectionId, { elements: (section.elements || []).map(item => item.id === blockId ? { ...item, ...patch } : item) });
+    patchSection(sectionId, { elements: updateElementTree(section.elements || [], blockId, patch) });
   }
   function moveElement(sectionId: string, blockId: string, direction: -1 | 1) {
     const section = project?.sections.find(item => item.id === sectionId);
     if (!section || section.locked) return;
-    const elements = [...(section.elements || [])];
-    const index = elements.findIndex(item => item.id === blockId);
-    const target = elements[index + direction];
-    if (index < 0 || !target || elements[index].locked || target.locked) return;
-    [elements[index], elements[index + direction]] = [elements[index + direction], elements[index]];
-    patchSection(sectionId, { elements });
+    const elements = moveSiblingElement(section.elements || [], blockId, direction);
+    if (elements) patchSection(sectionId, { elements });
   }
   function reorderElements(sectionId: string, fromId: string, toId: string) {
     if (!fromId || !toId || fromId === toId) return;
@@ -436,22 +740,29 @@ function ProjectEditor({ projectId }: { projectId: string }) {
     elements.splice(toIndex, 0, element);
     patchSection(sectionId, { elements });
   }
-  function moveElementToSection(fromSectionId: string, toSectionId: string, blockId: string, beforeBlockId?: string) {
+  function moveElementToSection(fromSectionId: string, toSectionId: string, blockId: string, beforeBlockId?: string, containerId?: string) {
     const source = project?.sections.find(item => item.id === fromSectionId);
     const target = project?.sections.find(item => item.id === toSectionId);
     if (!source || !target || source.locked || target.locked) return;
-    if (fromSectionId === toSectionId) {
-      if (beforeBlockId) reorderElements(toSectionId, blockId, beforeBlockId);
-      return;
-    }
-    const block = source.elements?.find(item => item.id === blockId);
+    const block = findElement(source.elements, blockId);
     if (!block || block.locked) return;
-    const sourceElements = (source.elements || []).filter(item => item.id !== blockId);
-    const targetElements = [...(target.elements || [])];
-    const targetIndex = beforeBlockId ? targetElements.findIndex(item => item.id === beforeBlockId) : -1;
-    targetElements.splice(targetIndex < 0 ? targetElements.length : targetIndex, 0, block);
+    const removed = removeElementTree(source.elements || [], blockId);
+    if (!removed.removed) return;
+    let targetElements = fromSectionId === toSectionId ? removed.elements : [...(target.elements || [])];
+    if (containerId) {
+      const container = findElement(targetElements, containerId);
+      if (!container || container.locked || !['container', 'columns'].includes(container.type)) return;
+      targetElements = updateElementTree(targetElements, containerId, { children: [...(container.children || []), removed.removed] });
+    } else if (beforeBlockId) {
+      targetElements = insertBeforeElementTree(targetElements, beforeBlockId, removed.removed) ?? targetElements;
+    } else {
+      targetElements = beforeBlockId
+        ? insertBeforeElementTree(targetElements, beforeBlockId, removed.removed) ?? targetElements
+        : [...targetElements, removed.removed];
+    }
+    if (fromSectionId === toSectionId && targetElements === removed.elements) return;
     const sections = project!.sections.map(section => section.id === source.id
-      ? { ...section, elements: sourceElements }
+      ? { ...section, elements: fromSectionId === toSectionId ? targetElements : removed.elements }
       : section.id === target.id ? { ...section, elements: targetElements } : section);
     commit({ ...project!, sections });
     setSelected(toSectionId);
@@ -460,21 +771,20 @@ function ProjectEditor({ projectId }: { projectId: string }) {
   function duplicateElement(sectionId: string, blockId: string) {
     const section = project?.sections.find(item => item.id === sectionId);
     if (!section || section.locked) return;
-    const elements = [...(section.elements || [])];
-    const index = elements.findIndex(item => item.id === blockId);
-    const source = elements[index];
+    const source = findElement(section.elements, blockId);
     if (!source || source.locked) return;
-    const copy = { ...source, id: uuid(), content: `${source.content} (copy)`, locked: false };
-    elements.splice(index + 1, 0, copy);
+    const copy = { ...freshElementIds(source), content: `${source.content} (copy)`, locked: false };
+    const elements = insertAfterElementTree(section.elements || [], blockId, copy);
+    if (!elements) return;
     patchSection(sectionId, { elements });
     setSelected(sectionId);
     setSelectedBlockId(copy.id);
   }
   function removeElement(sectionId: string, blockId: string) {
     const section = project?.sections.find(item => item.id === sectionId);
-    const block = section?.elements?.find(item => item.id === blockId);
+    const block = findElement(section?.elements, blockId);
     if (!section || section.locked || block?.locked) return;
-    patchSection(sectionId, { elements: (section.elements || []).filter(item => item.id !== blockId) });
+    patchSection(sectionId, { elements: removeElementTree(section.elements || [], blockId).elements });
     if (selectedBlockId === blockId) setSelectedBlockId('');
   }
   function addSection(type: SectionType, beforeId?: string) {
