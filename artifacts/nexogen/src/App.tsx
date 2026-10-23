@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FocusEvent, type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
@@ -103,9 +103,9 @@ const templates: Template[] = [
     { type: 'contact', title: 'Come by the studio.', body: 'Visit us Thursday to Sunday, 11–5. We would love to show you around.', visible: true, locked: false, padding: 42 },
     { type: 'footer', title: 'Atelier Sol', body: 'Portland, Oregon · © 2025 Atelier Sol', visible: true, locked: false, padding: 24 },
   ] },
-  { id: 'northline', name: 'Northline Dental', category: 'Health & wellness', description: 'Warm, approachable first impressions for neighborhood care teams.', businessType: 'Family dental practice', colors: ['#477b91', '#eef4f1', '#203940'], tone: 'blue', sections: [
+    { id: 'northline', name: 'Northline Dental', category: 'Health & wellness', description: 'Warm, approachable first impressions for neighborhood care teams.', businessType: 'Family dental practice', colors: ['#477b91', '#eef4f1', '#203940'], tone: 'blue', sections: [
     { type: 'navigation', title: 'Northline Dental', body: 'Our care    Meet the team    Find us', visible: true, locked: false, padding: 18 },
-    { type: 'hero', title: 'A healthier smile starts here.', body: 'Thoughtful, unhurried dental care for every age. A neighborhood practice built around people, not procedures.', visible: true, locked: false, padding: 58 },
+    { type: 'hero', title: 'A healthier smile starts here.', body: 'Thoughtful, unhurried dental care for every age. A neighborhood practice built around people, not procedures.', eyebrow: 'Care for every smile', ctaLabel: 'Book a visit', ctaUrl: '#contact', imageHint: 'A welcoming dental care team', fontFamily: 'serif', visible: true, locked: false, padding: 58 },
     { type: 'about', title: 'Care that feels different.', body: 'Our team takes time to listen, explain, and make sure you feel at home. From your first check-up to a more confident smile, you are in good hands.', visible: true, locked: false, padding: 48 },
     { type: 'features', title: 'Good care, all in one place.', body: 'Preventive visits · Family dentistry · Clear aligners · Emergency appointments', visible: true, locked: false, padding: 44 },
     { type: 'testimonial', title: '“The first appointment where I actually felt listened to.”', body: '— Morgan R., patient since 2021', visible: true, locked: false, padding: 42 },
@@ -294,6 +294,17 @@ function findElement(elements: BlockElement[] | undefined, id: string): BlockEle
   }
   return undefined;
 }
+function findElementDepth(elements: BlockElement[] | undefined, id: string, depth = 1): number | null {
+  for (const element of elements || []) {
+    if (element.id === id) return depth;
+    const nested = findElementDepth(element.children, id, depth + 1);
+    if (nested !== null) return nested;
+  }
+  return null;
+}
+function elementTreeHeight(element: BlockElement): number {
+  return 1 + Math.max(0, ...(element.children || []).map(elementTreeHeight));
+}
 function updateElementTree(elements: BlockElement[], id: string, patch: Partial<BlockElement>): BlockElement[] {
   return elements.map(element => element.id === id
     ? { ...element, ...patch }
@@ -459,8 +470,8 @@ function Home() {
   return <AppFrame><main className="page"><div className="home-layout">
     <div className="home-copy">
       <div className="eyebrow">A simpler way to show up online</div>
-       <h1 className="display">Build Business Landing Pages with AI</h1>
-       <p className="subhead">Describe your business and create a professional landing page you can customize visually, without writing code. Start with a clearly labeled local demo; AI generation is not connected yet.</p>
+       <h1 className="display">Build a landing page for your business</h1>
+        <p className="subhead">Choose an industry starter and customize the page visually, without writing code. This build creates a clearly labeled local demo; AI generation is not connected.</p>
       <div className="home-note"><Layers3 size={15} /> Structured sections, direct edits, no code.</div>
       <div className="home-note"><Save size={15} /> Saved locally on this device. Nothing is published.</div>
     </div>
@@ -505,7 +516,7 @@ function ProjectsPage() {
   const [notice, setNotice] = useState('');
   function update(next: Project[]) { setProjects(next); localStorage.setItem(STORAGE_KEY, JSON.stringify(next)); }
   function duplicate(project: Project) {
-    const clone = { ...project, id: uuid(), name: `${project.name.replace(/ — copy$/, '')} — copy`, sections: project.sections.map(s => ({ ...s, id: uuid() })), updatedAt: new Date().toISOString() };
+    const clone = { ...project, id: uuid(), name: `${project.name.replace(/ — copy$/, '')} — copy`, sections: project.sections.map(s => ({ ...s, id: uuid(), elements: s.elements?.map(freshElementIds) })), updatedAt: new Date().toISOString() };
     update([clone, ...projects]); setNotice('A local copy is ready.');
   }
   function confirmDialog() {
@@ -603,7 +614,7 @@ function renderHtml(project: Project) {
       const href = escapeHtml(safeUrl(section.ctaUrl || '#contact') || '#contact');
       return `<section class="hero" id="top"${attrs}><div class="hero-copy">${eyebrow}<h1 style="${headingStyle}">${title}</h1><p>${body}</p><a class="cta" href="${href}">${cta}</a></div>${imageVisual(section, 'hero-visual')}${extra}</section>`;
     }
-    if (section.type === 'features') return `<section class="features"${attrs}><div>${eyebrow}<h2 style="${headingStyle}">${title}</h2><p>${body}</p>${extra}</div><div class="visual" aria-hidden="true"></div></section>`;
+    if (section.type === 'features') return `<section class="features"${attrs}><div>${eyebrow}<h2 style="${headingStyle}">${title}</h2><p>${body}</p>${extra}</div>${imageVisual(section, 'visual')}</section>`;
     if (section.type === 'gallery') return `<section class="gallery"${attrs}><div><h2 style="${headingStyle}">${title}</h2><p>${body}</p></div>${imageVisual(section, 'gallery-visual')}${extra}</section>`;
     if (section.type === 'testimonial') return `<section class="quote"${attrs}><h2 style="${headingStyle}">${title}</h2><small>${body}</small>${extra}</section>`;
     if (section.type === 'contact') return `<section class="contact" id="contact"${attrs}><h2 style="${headingStyle}">${title}</h2><p>${body}</p>${section.ctaLabel ? `<a class="cta" href="${escapeHtml(safeUrl(section.ctaUrl || '#contact') || '#contact')}">${escapeHtml(section.ctaLabel)}</a>` : ''}${extra}</section>`;
@@ -690,7 +701,12 @@ function ProjectEditor({ projectId }: { projectId: string }) {
     let elements = [...(section.elements || [])];
     if (containerId) {
       const container = findElement(elements, containerId);
+      const depth = findElementDepth(elements, containerId);
       if (!container || container.locked || !['container', 'columns'].includes(container.type)) return;
+      if ((depth ?? 4) >= 4 || (container.children?.length || 0) >= 40) {
+        setNotice('This container has reached the supported nesting limit.');
+        return;
+      }
       elements = updateElementTree(elements, containerId, { children: [...(container.children || []), block] });
     } else if (beforeId) {
       elements = insertBeforeElementTree(elements, beforeId, block) ?? [...elements, block];
@@ -698,6 +714,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
       elements.push(block);
     }
     patchSection(sectionId, { elements });
+    setSelected(sectionId);
     setSelectedBlockId(block.id);
     setMobileSheet('properties');
     setInspectorOpen(true);
@@ -746,19 +763,23 @@ function ProjectEditor({ projectId }: { projectId: string }) {
     if (!source || !target || source.locked || target.locked) return;
     const block = findElement(source.elements, blockId);
     if (!block || block.locked) return;
+    if (containerId && (containerId === blockId || findElement(block.children, containerId))) return;
     const removed = removeElementTree(source.elements || [], blockId);
     if (!removed.removed) return;
     let targetElements = fromSectionId === toSectionId ? removed.elements : [...(target.elements || [])];
     if (containerId) {
       const container = findElement(targetElements, containerId);
+      const depth = findElementDepth(targetElements, containerId);
       if (!container || container.locked || !['container', 'columns'].includes(container.type)) return;
+      if ((depth ?? 4) + elementTreeHeight(removed.removed) > 4 || (container.children?.length || 0) >= 40) {
+        setNotice('This move would exceed the supported nesting limit.');
+        return;
+      }
       targetElements = updateElementTree(targetElements, containerId, { children: [...(container.children || []), removed.removed] });
     } else if (beforeBlockId) {
       targetElements = insertBeforeElementTree(targetElements, beforeBlockId, removed.removed) ?? targetElements;
     } else {
-      targetElements = beforeBlockId
-        ? insertBeforeElementTree(targetElements, beforeBlockId, removed.removed) ?? targetElements
-        : [...targetElements, removed.removed];
+      targetElements = [...targetElements, removed.removed];
     }
     if (fromSectionId === toSectionId && targetElements === removed.elements) return;
     const sections = project!.sections.map(section => section.id === source.id
@@ -790,11 +811,15 @@ function ProjectEditor({ projectId }: { projectId: string }) {
   function addSection(type: SectionType, beforeId?: string) {
     if (!project) return;
     const [title, body] = sectionDefaults[type];
-    const section: Section = { id: uuid(), type, title, body, visible: true, locked: false, padding: 44 };
+    const section: Section = {
+      id: uuid(), type, title, body, visible: true, locked: false, padding: 44,
+      ...(type === 'hero' ? { eyebrow: 'A clear first impression', ctaLabel: 'Get in touch', ctaUrl: '#contact', imageHint: 'A real photo of your business or team', fontFamily: 'serif' as const } : {}),
+      ...(type === 'features' || type === 'gallery' ? { imageHint: 'A real photo that shows your business or work' } : {}),
+    };
     const targetIndex = beforeId ? project.sections.findIndex(s => s.id === beforeId) : -1;
     const at = targetIndex >= 0 ? targetIndex : type === 'footer' ? project.sections.length : project.sections.findIndex(s => s.type === 'footer');
     const sections = [...project.sections]; sections.splice(at < 0 ? sections.length : at, 0, section);
-    commit({ ...project, sections }); setSelected(section.id); setNotice(`${sectionLabels[type]} section added.`); dragType.current = '';
+    commit({ ...project, sections }); setSelected(section.id); setSelectedBlockId(''); setNotice(`${sectionLabels[type]} section added.`); dragType.current = '';
   }
   function removeSection(id: string) {
     if (!project) return;
@@ -808,7 +833,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
     const index = project.sections.findIndex(s => s.id === id);
     const source = project.sections[index];
     if (!source) return;
-    const copy = { ...source, id: uuid(), title: `${source.title} (copy)` };
+    const copy = { ...source, id: uuid(), title: `${source.title} (copy)`, elements: source.elements?.map(freshElementIds) };
     const sections = [...project.sections]; sections.splice(index + 1, 0, copy);
     commit({ ...project, sections }); setSelected(copy.id);
   }
@@ -826,6 +851,131 @@ function ProjectEditor({ projectId }: { projectId: string }) {
     const target = project.sections[index + direction];
     if (index < 0 || !target) return;
     reorder(id, target.id);
+  }
+  function clearDragState() {
+    dragId.current = '';
+    dragBlockId.current = '';
+    dragBlockSectionId.current = '';
+    dragType.current = '';
+    dragNewElementType.current = '';
+    setDropTargetId('');
+  }
+  function renderLayerElement(section: Section, element: BlockElement, index: number, siblings: BlockElement[], depth = 0): ReactNode {
+    const isContainer = ['container', 'columns'].includes(element.type);
+    const selectedElement = selected === section.id && selectedBlockId === element.id;
+    const row = <div key={element.id} role="group" tabIndex={0}
+      aria-label={`${element.type.replace('-', ' ')} element in ${sectionLabels[section.type]}`}
+      draggable={!element.locked && !section.locked}
+      className={`layer-row layer-element-row ${selectedElement ? 'selected' : ''} ${dropTargetId === element.id ? 'drop-target' : ''}`}
+      style={{ marginLeft: `${Math.min(54, 14 + depth * 12)}px` }}
+      onClick={() => { setSelected(section.id); setSelectedBlockId(element.id); setInspectorOpen(true); setRightCollapsed(false); setMobileSheet('properties'); }}
+      onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(section.id); setSelectedBlockId(element.id); setInspectorOpen(true); setRightCollapsed(false); setMobileSheet('properties'); } }}
+      onDragStart={event => {
+        if ((event.target as HTMLElement).closest('button')) { event.preventDefault(); return; }
+        dragBlockId.current = element.id; dragBlockSectionId.current = section.id; dragId.current = '';
+        dragNewElementType.current = ''; dragType.current = '';
+        event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', element.id);
+      }}
+      onDragOver={event => { event.preventDefault(); event.stopPropagation(); setDropTargetId(element.id); }}
+      onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetId(''); }}
+      onDrop={event => {
+        event.preventDefault(); event.stopPropagation();
+        if (dragNewElementType.current) insertElement(section.id, dragNewElementType.current, isContainer ? undefined : element.id, isContainer ? element.id : undefined);
+        else if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current, isContainer ? undefined : element.id, isContainer ? element.id : undefined);
+        else if (dragType.current) addSection(dragType.current, section.id);
+        clearDragState();
+      }}
+      onDragEnd={clearDragState}
+      data-testid={`layer-element-${element.id}`}>
+      <span className="layer-grip" aria-hidden="true"><GripVertical size={12} /></span>
+      <span className="layer-title">{element.type.replace('-', ' ')}{isContainer && <span className="layer-nested-count"> · {element.children?.length || 0}</span>}</span>
+      <span className="layer-move-controls">
+        <button className="icon-button" aria-label="Move element up" disabled={index === 0 || element.locked || section.locked || siblings[index - 1]?.locked} onClick={event => { event.stopPropagation(); moveElement(section.id, element.id, -1); }}><ArrowUp size={12} /></button>
+        <button className="icon-button" aria-label="Move element down" disabled={index === siblings.length - 1 || element.locked || section.locked || siblings[index + 1]?.locked} onClick={event => { event.stopPropagation(); moveElement(section.id, element.id, 1); }}><ArrowDown size={12} /></button>
+      </span>
+      <span className="layer-mini">
+        <button className="icon-button" aria-label={element.visible === false ? 'Show element' : 'Hide element'} onClick={event => { event.stopPropagation(); patchElementInSection(section.id, element.id, { visible: element.visible === false }); }} data-testid={`button-element-visibility-${element.id}`}>{element.visible === false ? <EyeOff size={12} /> : <Eye size={12} />}</button>
+        <button className="icon-button" aria-label={element.locked ? 'Unlock element' : 'Lock element'} onClick={event => { event.stopPropagation(); patchElementInSection(section.id, element.id, { locked: !element.locked }); }} data-testid={`button-element-lock-${element.id}`}>{element.locked ? <Lock size={12} /> : <Unlock size={12} />}</button>
+        <button className="icon-button" aria-label="Duplicate element" disabled={element.locked || section.locked} onClick={event => { event.stopPropagation(); setSelected(section.id); duplicateElement(section.id, element.id); }} data-testid={`button-element-duplicate-${element.id}`}><Copy size={12} /></button>
+        <button className="icon-button" aria-label="Remove element" disabled={element.locked || section.locked} onClick={event => { event.stopPropagation(); removeElement(section.id, element.id); }} data-testid={`button-element-remove-${element.id}`}><X size={12} /></button>
+      </span>
+    </div>;
+    return <div className={`layer-tree-node ${depth > 0 ? 'nested' : ''}`} key={element.id}>
+      {row}
+      {element.children?.map((child, childIndex) => renderLayerElement(section, child, childIndex, element.children || [], depth + 1))}
+    </div>;
+  }
+  function renderCanvasElement(section: Section, block: BlockElement, depth = 0): ReactNode {
+    const isContainer = ['container', 'columns'].includes(block.type);
+    const canEdit = !previewOnly && !section.locked && !block.locked && ['heading', 'text', 'button', 'icon', 'container'].includes(block.type);
+    const blockStyle: CSSProperties = {
+      fontSize: block.fontSize ? `${block.fontSize}px` : undefined,
+      fontFamily: block.fontFamily ? fontStack(block.fontFamily) : undefined,
+      color: block.color,
+      backgroundColor: block.backgroundColor,
+      border: block.borderColor ? `1px solid ${block.borderColor}` : undefined,
+      borderRadius: block.borderRadius !== undefined ? `${block.borderRadius}px` : undefined,
+      padding: block.padding ?? undefined,
+      marginLeft: depth ? `${Math.min(40, depth * 8)}px` : undefined,
+    };
+    const updateContent = (event: FocusEvent<HTMLElement>) => patchElementInSection(section.id, block.id, { content: event.currentTarget.innerText });
+    const children = (block.children || []).filter(child => child.visible !== false);
+    const childContent = (items: BlockElement[]) => items.map((child, index) => renderCanvasElement(section, child, depth + 1));
+    const emptyDropHint = !previewOnly && isContainer && children.length === 0
+      ? <div className="container-drop-hint"><Plus size={13} />Drop elements here</div> : null;
+    return <div key={block.id} role="group" tabIndex={previewOnly ? -1 : 0}
+      aria-label={`${block.type.replace('-', ' ')} element`}
+      draggable={!block.locked && !section.locked && !previewOnly}
+      onKeyDown={event => { if (!previewOnly && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(section.id); setSelectedBlockId(block.id); setInspectorOpen(true); setMobileSheet('properties'); } }}
+      onDragStart={event => {
+        event.stopPropagation(); dragBlockId.current = block.id; dragBlockSectionId.current = section.id; dragId.current = '';
+        dragNewElementType.current = ''; dragType.current = '';
+        event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', block.id);
+      }}
+      onDragOver={event => { event.preventDefault(); event.stopPropagation(); setDropTargetId(block.id); }}
+      onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetId(''); }}
+      onDrop={event => {
+        event.preventDefault(); event.stopPropagation();
+        if (dragNewElementType.current) insertElement(section.id, dragNewElementType.current, isContainer ? undefined : block.id, isContainer ? block.id : undefined);
+        else if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current, isContainer ? undefined : block.id, isContainer ? block.id : undefined);
+        else if (dragType.current) addSection(dragType.current, section.id);
+        clearDragState();
+      }}
+      onDragEnd={clearDragState}
+      className={`site-block site-block-${block.type} ${selectedBlockId === block.id ? 'selected-block' : ''} ${dropTargetId === block.id ? 'drop-target' : ''}`}
+      style={blockStyle}
+      onClick={event => { if (previewOnly) return; event.stopPropagation(); setSelected(section.id); setSelectedBlockId(block.id); setInspectorOpen(true); setRightCollapsed(false); setMobileSheet('properties'); }}
+      data-testid={`canvas-element-${block.id}`}>
+      {block.type === 'heading' ? <h2 contentEditable={canEdit} suppressContentEditableWarning onBlur={updateContent}>{block.content}</h2> :
+        block.type === 'text' ? <p contentEditable={canEdit} suppressContentEditableWarning onBlur={updateContent}>{block.content}</p> :
+        block.type === 'image' ? (safeUrl(block.imageUrl || '', true)
+          ? <img src={safeUrl(block.imageUrl || '', true)} alt={block.content} />
+          : <div className="image-placeholder"><ImageIcon size={22} /><span>{block.content}</span><small>Replace with a real image URL in properties</small></div>) :
+        block.type === 'button' ? <a className="site-cta" contentEditable={canEdit} suppressContentEditableWarning onBlur={updateContent}
+          style={{ fontSize: block.fontSize ? `${block.fontSize}px` : undefined, color: block.color, backgroundColor: block.backgroundColor, padding: block.padding ?? undefined }}
+          href={safeUrl(block.secondary || '#contact')} onClick={event => { if (!previewOnly) event.preventDefault(); }}>{block.content}</a> :
+        block.type === 'divider' ? <hr /> :
+        block.type === 'spacer' ? <div className="block-spacer" aria-label="Spacer element" /> :
+        block.type === 'columns' ? <div className="block-columns">
+          {children.length ? <><div>{childContent(children.filter((_, index) => index % 2 === 0))}</div><div>{childContent(children.filter((_, index) => index % 2 === 1))}</div></> : <><p>{block.content}</p><p>{block.secondary}</p></>}
+          {emptyDropHint}
+        </div> :
+        block.type === 'video' ? <a className="video-placeholder" href={safeUrl(block.secondary || '') || undefined} target="_blank" rel="noreferrer" onClick={event => { if (!previewOnly) event.preventDefault(); }}><Video size={20} />{block.content}</a> :
+        block.type === 'contact-form' ? <div className="block-form-preview"><label>Name<input readOnly value="" /></label><label>Email<input readOnly value="" /></label><button type="button" disabled>Connect a form provider</button><small>Sample only · submissions are not connected</small></div> :
+        block.type === 'icon' ? <span className="block-icon" contentEditable={canEdit} suppressContentEditableWarning onBlur={updateContent} aria-label={block.content}>{block.content}</span> :
+        <div className="block-container"><span className="container-title" contentEditable={canEdit} suppressContentEditableWarning onBlur={updateContent}>{block.content}</span>{children.length ? childContent(children) : emptyDropHint}</div>}
+      <span className="block-select-label">Selected element</span>
+    </div>;
+  }
+  function renderSectionImage(section: Section, className: string): ReactNode {
+    const imageUrl = safeUrl(section.imageUrl || '', true);
+    return imageUrl
+      ? <img className={`${className} visual-image`} src={imageUrl} alt={section.imageHint || section.title} />
+      : <div className={`${className} image-placeholder`}>
+        <ImageIcon size={22} />
+        <span>Replace with a real photo</span>
+        <small>{section.imageHint || 'Add an image URL in section properties.'}</small>
+      </div>;
   }
   function undo() {
     if (!project || !history.length) return;
@@ -896,15 +1046,15 @@ function ProjectEditor({ projectId }: { projectId: string }) {
            {(['elements', 'sections', 'layers'] as const).map(tab => <button key={tab} role="tab" aria-selected={panelTab === tab} className={panelTab === tab ? 'active' : ''} onClick={() => setPanelTab(tab)} data-testid={`tab-${tab}`}>{tab}</button>)}
          </div>
         <div className="panel-body">
-         {panelTab === 'elements' && <><p className="panel-helper">Add to the selected section</p><div className="element-library">{([
+         {panelTab === 'elements' && <><p className="panel-helper">Add to the selected section, or drag into a container</p><div className="element-library">{([
            ['heading', 'Heading', Type], ['text', 'Text', Type], ['image', 'Image', ImageIcon], ['button', 'Button', MousePointer2], ['container', 'Container', Box], ['columns', 'Columns', Columns2], ['divider', 'Divider', Minus], ['spacer', 'Spacer', Maximize2], ['icon', 'Icon', Plus], ['video', 'Video', Video], ['contact-form', 'Contact form', Mail],
-         ] as const).map(([type, label, Icon]) => <button key={type} onClick={() => addElement(type)} disabled={!selectedSection || selectedSection.locked} data-testid={`add-element-${type}`}><Icon size={16} /><span>{label}</span><Plus size={13} className="element-add-icon" /></button>)}</div></>}
-         {panelTab === 'sections' && <><p className="panel-helper">Choose a section preset</p><div className="add-section-menu section-library" aria-label="Add a section">{(['navigation', 'hero', 'features', 'about', 'gallery', 'testimonial', 'pricing', 'faq', 'contact', 'footer'] as SectionType[]).map(type => <button key={type} draggable onDragStart={event => { dragType.current = type; dragId.current = ''; event.dataTransfer.setData('text/plain', type); }} onClick={() => addSection(type)} data-testid={`button-add-${type}`}><Plus size={13} /> {sectionLabels[type]}</button>)}</div></>}
+         ] as const).map(([type, label, Icon]) => <button key={type} draggable={!selectedSection?.locked} onDragStart={event => { dragNewElementType.current = type; dragType.current = ''; dragId.current = ''; dragBlockId.current = ''; dragBlockSectionId.current = ''; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('text/plain', type); }} onDragEnd={clearDragState} onClick={() => addElement(type)} disabled={!selectedSection || selectedSection.locked} data-testid={`add-element-${type}`}><Icon size={16} /><span>{label}</span><Plus size={13} className="element-add-icon" /></button>)}</div></>}
+         {panelTab === 'sections' && <><p className="panel-helper">Choose a section preset</p><div className="add-section-menu section-library" aria-label="Add a section">{(['navigation', 'hero', 'features', 'about', 'gallery', 'testimonial', 'pricing', 'faq', 'contact', 'footer'] as SectionType[]).map(type => <button key={type} draggable onDragStart={event => { dragType.current = type; dragNewElementType.current = ''; dragId.current = ''; dragBlockId.current = ''; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData('text/plain', type); }} onDragEnd={clearDragState} onClick={() => addSection(type)} data-testid={`button-add-${type}`}><Plus size={13} /> {sectionLabels[type]}</button>)}</div></>}
           {panelTab === 'layers' && <>
            <div className="layers-note">Drag to reorder · select to edit</div>
            <div className="layers-list">{project.sections.map((section, index) => <div className="layer-group" key={section.id}>
-             <div role="group" tabIndex={0} aria-label={`${sectionLabels[section.type]} section`} className={`layer-row ${selected === section.id && !selectedBlockId ? 'selected' : ''}`} onClick={() => { setSelected(section.id); setSelectedBlockId(''); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(section.id); setSelectedBlockId(''); } }} onDragOver={event => { event.preventDefault(); setDropTargetId(section.id); }} onDragLeave={() => setDropTargetId('')} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current); else reorder(dragId.current, section.id); setDropTargetId(''); }} data-testid={`layer-${section.id}`}>
-              <span className="layer-grip" draggable={!section.locked} aria-label={`Reorder ${sectionLabels[section.type]}`} onDragStart={() => { dragId.current = section.id; dragBlockId.current = ''; dragBlockSectionId.current = ''; }} onClick={event => event.stopPropagation()}><GripVertical size={13} /></span>
+             <div role="group" tabIndex={0} aria-label={`${sectionLabels[section.type]} section`} className={`layer-row ${selected === section.id && !selectedBlockId ? 'selected' : ''} ${dropTargetId === section.id ? 'drop-target' : ''}`} onClick={() => { setSelected(section.id); setSelectedBlockId(''); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(section.id); setSelectedBlockId(''); } }} onDragOver={event => { event.preventDefault(); setDropTargetId(section.id); }} onDragLeave={() => setDropTargetId('')} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragNewElementType.current) insertElement(section.id, dragNewElementType.current); else if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current); else if (dragType.current) addSection(dragType.current, section.id); else reorder(dragId.current, section.id); clearDragState(); }} data-testid={`layer-${section.id}`}>
+              <span className="layer-grip" draggable={!section.locked} aria-label={`Reorder ${sectionLabels[section.type]}`} onDragStart={event => { dragId.current = section.id; dragType.current = ''; dragNewElementType.current = ''; dragBlockId.current = ''; dragBlockSectionId.current = ''; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', section.id); }} onDragEnd={clearDragState} onClick={event => event.stopPropagation()}><GripVertical size={13} /></span>
               <span className="layer-title">{sectionLabels[section.type]} <span style={{ opacity: .55 }}>{index + 1}</span></span>
               <span className="layer-move-controls">
                 <button className="icon-button" aria-label="Move section up" disabled={index === 0 || section.locked || project.sections[index - 1]?.locked} onClick={event => { event.stopPropagation(); moveSection(section.id, -1); }}><ArrowUp size={12} /></button>
@@ -917,20 +1067,7 @@ function ProjectEditor({ projectId }: { projectId: string }) {
                 {!section.locked && <button className="icon-button" aria-label="Remove section" onClick={event => { event.stopPropagation(); removeSection(section.id); }} data-testid={`button-remove-section-${section.id}`}><X size={12} /></button>}
               </span>
              </div>
-             {(section.elements || []).map((element, elementIndex) => <div key={element.id} role="group" tabIndex={0} aria-label={`${element.type.replace('-', ' ')} element in ${sectionLabels[section.type]}`} draggable={!element.locked && !section.locked} className={`layer-row layer-element-row ${selected === section.id && selectedBlockId === element.id ? 'selected' : ''} ${dropTargetId === element.id ? 'drop-target' : ''}`} onClick={() => { setSelected(section.id); setSelectedBlockId(element.id); setInspectorOpen(true); setMobileSheet('properties'); }} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); setSelected(section.id); setSelectedBlockId(element.id); setInspectorOpen(true); setMobileSheet('properties'); } }} onDragStart={event => { dragBlockId.current = element.id; dragBlockSectionId.current = section.id; dragId.current = ''; event.dataTransfer.effectAllowed = 'move'; }} onDragOver={event => { event.preventDefault(); setDropTargetId(element.id); }} onDragLeave={() => setDropTargetId('')} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current, element.id); setDropTargetId(''); }} onDragEnd={() => { dragBlockId.current = ''; dragBlockSectionId.current = ''; setDropTargetId(''); }} data-testid={`layer-element-${element.id}`}>
-               <span className="layer-grip" aria-label={`Reorder ${element.type}`}><GripVertical size={12} /></span>
-               <span className="layer-title">{element.type.replace('-', ' ')} <span style={{ opacity: .55 }}>{elementIndex + 1}</span></span>
-               <span className="layer-move-controls">
-                 <button className="icon-button" aria-label="Move element up" disabled={elementIndex === 0 || element.locked || section.locked || section.elements?.[elementIndex - 1]?.locked} onClick={event => { event.stopPropagation(); moveElement(section.id, element.id, -1); }}><ArrowUp size={12} /></button>
-                 <button className="icon-button" aria-label="Move element down" disabled={elementIndex === (section.elements?.length || 0) - 1 || element.locked || section.locked || section.elements?.[elementIndex + 1]?.locked} onClick={event => { event.stopPropagation(); moveElement(section.id, element.id, 1); }}><ArrowDown size={12} /></button>
-               </span>
-               <span className="layer-mini">
-                 <button className="icon-button" aria-label={element.visible === false ? 'Show element' : 'Hide element'} onClick={event => { event.stopPropagation(); patchElementInSection(section.id, element.id, { visible: element.visible === false }); }} data-testid={`button-element-visibility-${element.id}`}>{element.visible === false ? <EyeOff size={12} /> : <Eye size={12} />}</button>
-                 <button className="icon-button" aria-label={element.locked ? 'Unlock element' : 'Lock element'} onClick={event => { event.stopPropagation(); patchElementInSection(section.id, element.id, { locked: !element.locked }); }} data-testid={`button-element-lock-${element.id}`}>{element.locked ? <Lock size={12} /> : <Unlock size={12} />}</button>
-                 <button className="icon-button" aria-label="Duplicate element" disabled={element.locked || section.locked} onClick={event => { event.stopPropagation(); setSelected(section.id); duplicateElement(section.id, element.id); }} data-testid={`button-element-duplicate-${element.id}`}><Copy size={12} /></button>
-                 <button className="icon-button" aria-label="Remove element" disabled={element.locked || section.locked} onClick={event => { event.stopPropagation(); removeElement(section.id, element.id); }} data-testid={`button-element-remove-${element.id}`}><X size={12} /></button>
-               </span>
-             </div>)}
+             {(section.elements || []).map((element, elementIndex, elements) => renderLayerElement(section, element, elementIndex, elements))}
            </div>)}</div>
           </>}
         </div>
@@ -946,29 +1083,65 @@ function ProjectEditor({ projectId }: { projectId: string }) {
         </div>
         <div className="canvas-wrap" style={{ width: canvasWidth, zoom: zoom / 100 }}>
           <div className="canvas-label"><span>Page preview</span><span>{device === 'desktop' ? 'Fluid desktop' : device === 'tablet' ? '768 px' : '390 px'} · {previewOnly ? 'Preview' : 'Editing'}</span></div>
-            <div className={`site-canvas ${previewOnly ? 'uncluttered-preview' : ''}`} style={{ '--site-bg': project.theme.backgroundColor, '--site-text': project.theme.textColor, '--site-primary': project.theme.primaryColor } as CSSProperties} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); if (dragType.current) addSection(dragType.current); setDropTargetId(''); }} data-testid="site-canvas">
-             {project.sections.filter(section => section.visible).map(section => <section key={section.id} id={section.type === 'contact' ? 'contact' : undefined} tabIndex={previewOnly ? undefined : 0} aria-label={`${sectionLabels[section.type]} section`} draggable={!section.locked && !previewOnly} onDragStart={event => { if ((event.target as HTMLElement).closest('.site-block')) return; dragId.current = section.id; dragType.current = ''; dragBlockId.current = ''; dragBlockSectionId.current = ''; event.dataTransfer.effectAllowed = 'move'; }} onDragOver={event => { event.preventDefault(); if (!dragBlockId.current) setDropTargetId(section.id); }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetId(''); }} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current); else if (dragType.current) addSection(dragType.current, section.id); else reorder(dragId.current, section.id); setDropTargetId(''); }} onDragEnd={() => { dragId.current = ''; setDropTargetId(''); }} onKeyDown={event => { if (!previewOnly && event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(section.id); setSelectedBlockId(''); setInspectorOpen(true); setRightCollapsed(false); } }} onClick={event => { if (previewOnly) return; setSelected(section.id); setSelectedBlockId(''); if (!(event.target as HTMLElement).isContentEditable) { setInspectorOpen(true); setRightCollapsed(false); if (window.matchMedia('(max-width:720px)').matches) setMobileSheet('properties'); } }} className={`site-section ${selected === section.id ? 'selected' : ''} ${dropTargetId === section.id ? 'drop-target' : ''} ${section.type === 'hero' ? 'site-hero' : ''} ${section.type === 'features' ? 'site-feature' : ''} ${section.type === 'testimonial' ? 'site-quote' : ''} ${section.type === 'contact' ? 'site-contact' : ''} ${section.type === 'footer' ? 'site-footer' : ''}`} style={{ paddingTop: section.padding, paddingBottom: section.padding }} data-testid={`canvas-section-${section.id}`}>
+            <div className={`site-canvas theme-${safeName(project.templateId)} ${previewOnly ? 'uncluttered-preview' : ''}`} style={{ '--site-bg': project.theme.backgroundColor, '--site-text': project.theme.textColor, '--site-primary': project.theme.primaryColor } as CSSProperties}
+              onDragOver={event => event.preventDefault()}
+              onDrop={event => {
+                event.preventDefault();
+                const destination = selectedSection || [...project.sections].reverse().find(section => section.visible);
+                if (dragNewElementType.current && destination) insertElement(destination.id, dragNewElementType.current);
+                else if (dragType.current) addSection(dragType.current);
+                else if (dragBlockId.current && destination) moveElementToSection(dragBlockSectionId.current, destination.id, dragBlockId.current);
+                clearDragState();
+              }} data-testid="site-canvas">
+              {project.sections.filter(section => section.visible).map(section => {
+                const editable = !previewOnly && !section.locked;
+                const sectionStyle: CSSProperties = {
+                  paddingTop: section.padding, paddingBottom: section.padding,
+                  backgroundColor: section.backgroundColor, color: section.textColor,
+                  border: section.borderColor ? `1px solid ${section.borderColor}` : undefined,
+                  borderRadius: section.borderRadius !== undefined ? `${section.borderRadius}px` : undefined,
+                  fontFamily: section.fontFamily ? fontStack(section.fontFamily) : undefined,
+                };
+                const sectionHeadingStyle: CSSProperties = {
+                  fontSize: section.fontSize ? `${section.fontSize}px` : undefined,
+                  fontFamily: section.fontFamily ? fontStack(section.fontFamily) : undefined,
+                };
+                return <section key={section.id} id={section.type === 'contact' ? 'contact' : undefined}
+                  tabIndex={previewOnly ? undefined : 0} aria-label={`${sectionLabels[section.type]} section`}
+                  onDragOver={event => { event.preventDefault(); setDropTargetId(section.id); }}
+                  onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetId(''); }}
+                  onDrop={event => {
+                    event.preventDefault(); event.stopPropagation();
+                    if (dragNewElementType.current) insertElement(section.id, dragNewElementType.current);
+                    else if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current);
+                    else if (dragType.current) addSection(dragType.current, section.id);
+                    else reorder(dragId.current, section.id);
+                    clearDragState();
+                  }}
+                  onKeyDown={event => { if (!previewOnly && event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(section.id); setSelectedBlockId(''); setInspectorOpen(true); setRightCollapsed(false); } }}
+                  onClick={event => { if (previewOnly) return; setSelected(section.id); setSelectedBlockId(''); if (!(event.target as HTMLElement).isContentEditable) { setInspectorOpen(true); setRightCollapsed(false); if (window.matchMedia('(max-width:720px)').matches) setMobileSheet('properties'); } }}
+                  className={`site-section ${selected === section.id ? 'selected' : ''} ${dropTargetId === section.id ? 'drop-target' : ''} ${section.type === 'hero' ? 'site-hero' : ''} ${section.type === 'features' ? 'site-feature' : ''} ${section.type === 'gallery' ? 'site-gallery' : ''} ${section.type === 'testimonial' ? 'site-quote' : ''} ${section.type === 'contact' ? 'site-contact' : ''} ${section.type === 'footer' ? 'site-footer' : ''}`}
+                  style={sectionStyle} data-testid={`canvas-section-${section.id}`}>
                   {!previewOnly && <span className="inline-hint">Select to edit</span>}
-               {section.type === 'navigation' ? <><strong contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })} style={{ font: '17px "DM Serif Display", serif' }}>{section.title}</strong><span contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })} style={{ float: 'right', fontSize: 11, opacity: .7 }}>{section.body}</span></> :
-                 section.type === 'hero' ? <><h1 contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h1><p contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p><a className="site-cta" href="#contact" onClick={e => { e.preventDefault(); setSelected(section.id); }}>Get in touch</a></> :
-                 section.type === 'features' ? <><div><h2 contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h2><p contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p></div><div className="feature-visual" aria-hidden="true" /></> :
-                 section.type === 'testimonial' ? <><p contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</p><small contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</small></> :
-                 section.type === 'footer' ? <><strong contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</strong><span contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })} style={{ marginLeft: 8 }}>{section.body}</span></> :
-                  <><h2 contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h2><p contentEditable={!section.locked} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p></>}
-                 {(section.elements || []).filter(block => block.visible !== false).map(block => <div key={block.id} role="group" tabIndex={previewOnly ? -1 : 0} aria-label={`${block.type.replace('-', ' ')} element`} draggable={!block.locked && !section.locked && !previewOnly} onKeyDown={event => { if (!previewOnly && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); setSelected(section.id); setSelectedBlockId(block.id); setInspectorOpen(true); setMobileSheet('properties'); } }} onDragStart={event => { event.stopPropagation(); dragBlockId.current = block.id; dragBlockSectionId.current = section.id; dragId.current = ''; event.dataTransfer.effectAllowed = 'move'; }} onDragOver={event => { event.preventDefault(); event.stopPropagation(); setDropTargetId(block.id); }} onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropTargetId(''); }} onDrop={event => { event.preventDefault(); event.stopPropagation(); if (dragBlockId.current) moveElementToSection(dragBlockSectionId.current, section.id, dragBlockId.current, block.id); else if (dragType.current) addSection(dragType.current, section.id); setDropTargetId(''); }} onDragEnd={() => { dragBlockId.current = ''; dragBlockSectionId.current = ''; setDropTargetId(''); }} className={`site-block site-block-${block.type} ${selectedBlockId === block.id ? 'selected-block' : ''} ${dropTargetId === block.id ? 'drop-target' : ''}`} style={{ fontSize: block.fontSize ? `${block.fontSize}px` : undefined, color: block.color, backgroundColor: block.backgroundColor, padding: block.padding ?? undefined }} onClick={event => { if (previewOnly) return; event.stopPropagation(); setSelected(section.id); setSelectedBlockId(block.id); setInspectorOpen(true); setRightCollapsed(false); setMobileSheet('properties'); }} data-testid={`canvas-element-${block.id}`}>
-                  {block.type === 'heading' ? <h2>{block.content}</h2> :
-                   block.type === 'text' ? <p>{block.content}</p> :
-                   block.type === 'image' ? (block.imageUrl ? <img src={block.imageUrl} alt={block.content} /> : <div className="image-placeholder"><ImageIcon size={22} /><span>{block.content}</span></div>) :
-                    block.type === 'button' ? <a className="site-cta" style={{ fontSize: block.fontSize ? `${block.fontSize}px` : undefined, color: block.color, backgroundColor: block.backgroundColor, padding: block.padding ?? undefined }} href={block.secondary || '#contact'} onClick={event => { if (!previewOnly) event.preventDefault(); }}>{block.content}</a> :
-                   block.type === 'divider' ? <hr /> :
-                   block.type === 'spacer' ? <div className="block-spacer" aria-label="Spacer element" /> :
-                   block.type === 'columns' ? <div className="block-columns"><p>{block.content}</p><p>{block.secondary}</p></div> :
-                    block.type === 'video' ? <a className="video-placeholder" href={block.secondary || undefined} target="_blank" rel="noreferrer" onClick={event => { if (!previewOnly) event.preventDefault(); }}><Video size={20} />{block.content}</a> :
-                    block.type === 'contact-form' ? <div className="block-form-preview"><label>Name<input readOnly value="" /></label><label>Email<input readOnly value="" /></label><button type="button" disabled>Connect a form provider</button><small>Sample only · submissions are not connected</small></div> :
-                   block.type === 'icon' ? <span className="block-icon" aria-label={block.content}>{block.content}</span> : <div className="block-container">{block.content}</div>}
-                  <span className="block-select-label">Selected element</span>
-                </div>)}
-            </section>)}
+                  {!previewOnly && !section.locked && <button className="section-drag-handle" type="button" draggable aria-label={`Drag to reorder ${sectionLabels[section.type]}`} title="Drag to reorder section"
+                    onClick={event => event.stopPropagation()}
+                    onDragStart={event => { event.stopPropagation(); dragId.current = section.id; dragType.current = ''; dragNewElementType.current = ''; dragBlockId.current = ''; dragBlockSectionId.current = ''; event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', section.id); }}
+                    onDragEnd={clearDragState}><GripVertical size={14} /></button>}
+                  {section.type === 'navigation' ? <><strong contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })} style={{ font: '17px "DM Serif Display", serif' }}>{section.title}</strong><span contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })} style={{ float: 'right', fontSize: 11, opacity: .7 }}>{section.body}</span></> :
+                    section.type === 'hero' ? <><div className="hero-copy">
+                      {section.eyebrow && <small className="hero-eyebrow" contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { eyebrow: e.currentTarget.innerText })}>{section.eyebrow}</small>}
+                      <h1 contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })} style={{ fontSize: section.fontSize ? `${section.fontSize}px` : undefined, fontFamily: section.fontFamily ? fontStack(section.fontFamily) : undefined }}>{section.title}</h1>
+                      <p contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p>
+                      <a className="site-cta" href={safeUrl(section.ctaUrl || '#contact') || '#contact'} onClick={event => { if (!previewOnly) { event.preventDefault(); setSelected(section.id); } }}>{section.ctaLabel || 'Get in touch'}</a>
+                    </div>{renderSectionImage(section, 'hero-visual')}</> :
+                    section.type === 'features' ? <><div><h2 style={sectionHeadingStyle} contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h2><p contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p></div>{renderSectionImage(section, 'feature-visual')}</> :
+                    section.type === 'gallery' ? <><div><h2 style={sectionHeadingStyle} contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h2><p contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p></div>{renderSectionImage(section, 'gallery-visual')}</> :
+                    section.type === 'testimonial' ? <><p contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</p><small contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</small></> :
+                    section.type === 'footer' ? <><strong contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</strong><span contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })} style={{ marginLeft: 8 }}>{section.body}</span></> :
+                    <><h2 style={sectionHeadingStyle} contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { title: e.currentTarget.innerText })}>{section.title}</h2><p contentEditable={editable} suppressContentEditableWarning onBlur={e => patchSection(section.id, { body: e.currentTarget.innerText })}>{section.body}</p></>}
+                  {(section.elements || []).filter(block => block.visible !== false).map(block => renderCanvasElement(section, block))}
+                </section>;
+              })}
           </div>
         </div>
       </main>
@@ -980,8 +1153,8 @@ function ProjectEditor({ projectId }: { projectId: string }) {
             {['image', 'button', 'video'].includes(selectedBlock.type) && <><label className="property-label" htmlFor="block-secondary">{selectedBlock.type === 'image' ? 'Image URL' : 'Link URL'}</label><input id="block-secondary" className="property-input" value={selectedBlock.type === 'image' ? selectedBlock.imageUrl || '' : selectedBlock.secondary || ''} disabled={selectedSection.locked || selectedBlock.locked} onChange={e => patchElement(selectedBlock.id, selectedBlock.type === 'image' ? { imageUrl: e.target.value } : { secondary: e.target.value })} data-testid="input-element-url" /></>}
             {selectedBlock.type === 'columns' && <><label className="property-label" htmlFor="block-column-two">Second column</label><textarea id="block-column-two" className="property-input property-textarea" value={selectedBlock.secondary || ''} disabled={selectedSection.locked || selectedBlock.locked} onChange={e => patchElement(selectedBlock.id, { secondary: e.target.value })} data-testid="input-element-column-two" /></>}
           </div>
-          {['heading', 'text', 'button', 'icon', 'container', 'columns'].includes(selectedBlock.type) && <div className="property-section"><div className="property-title">Typography</div><label className="property-label" htmlFor="element-font-size">Font size</label><div className="range-row"><input id="element-font-size" type="range" min="8" max="64" step="1" value={selectedBlock.fontSize ?? 18} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { fontSize: Number(event.target.value) })} data-testid="input-element-font-size" /><span className="range-value">{selectedBlock.fontSize ?? 18}px</span></div></div>}
-          <div className="property-section"><div className="property-title">Colors</div><label className="color-row">Text color <input type="color" value={selectedBlock.color || project.theme.textColor} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { color: event.target.value })} aria-label="Element text color" data-testid="input-element-color" /></label><label className="color-row">Background <input type="color" value={selectedBlock.backgroundColor || project.theme.backgroundColor} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { backgroundColor: event.target.value })} aria-label="Element background color" data-testid="input-element-background" /></label></div>
+          {['heading', 'text', 'button', 'icon', 'container', 'columns'].includes(selectedBlock.type) && <div className="property-section"><div className="property-title">Typography</div><label className="property-label" htmlFor="element-font-size">Font size</label><div className="range-row"><input id="element-font-size" type="range" min="8" max="64" step="1" value={selectedBlock.fontSize ?? 18} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { fontSize: Number(event.target.value) })} data-testid="input-element-font-size" /><span className="range-value">{selectedBlock.fontSize ?? 18}px</span></div><label className="property-label" htmlFor="element-font-family" style={{ marginTop: 10 }}>Font family</label><select id="element-font-family" className="property-input" value={selectedBlock.fontFamily || 'sans'} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { fontFamily: event.target.value as FontFamily })} data-testid="select-element-font-family"><option value="sans">Sans serif</option><option value="serif">Serif</option><option value="mono">Monospace</option></select></div>}
+          <div className="property-section"><div className="property-title">Colors & shape</div><label className="color-row">Text color <input type="color" value={selectedBlock.color || project.theme.textColor} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { color: event.target.value })} aria-label="Element text color" data-testid="input-element-color" /></label><label className="color-row">Background <input type="color" value={selectedBlock.backgroundColor || project.theme.backgroundColor} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { backgroundColor: event.target.value })} aria-label="Element background color" data-testid="input-element-background" /></label><label className="color-row">Border <input type="color" value={selectedBlock.borderColor || '#30303a'} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { borderColor: event.target.value })} aria-label="Element border color" data-testid="input-element-border" /></label><label className="property-label" htmlFor="element-radius">Corner radius</label><div className="range-row"><input id="element-radius" type="range" min="0" max="48" step="2" value={selectedBlock.borderRadius ?? 0} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { borderRadius: Number(event.target.value) })} data-testid="input-element-radius" /><span className="range-value">{selectedBlock.borderRadius ?? 0}px</span></div></div>
           <div className="property-section"><div className="property-title">Spacing</div><label className="property-label" htmlFor="element-padding">Element padding</label><div className="range-row"><input id="element-padding" type="range" min="0" max="60" step="2" value={selectedBlock.padding ?? 10} disabled={selectedSection.locked || selectedBlock.locked} onChange={event => patchElement(selectedBlock.id, { padding: Number(event.target.value) })} data-testid="input-element-padding" /><span className="range-value">{selectedBlock.padding ?? 10}px</span></div></div>
           <div className="property-section"><div className="property-title">Element actions</div>
             <button className="secondary-button wide" onClick={() => patchElement(selectedBlock.id, { locked: !selectedBlock.locked })} disabled={selectedSection.locked} data-testid="button-property-element-lock">{selectedBlock.locked ? <Unlock size={14} /> : <Lock size={14} />}{selectedBlock.locked ? 'Unlock element' : 'Lock element'}</button>
@@ -994,8 +1167,24 @@ function ProjectEditor({ projectId }: { projectId: string }) {
           <div className="property-section"><div className="property-title">{sectionLabels[selectedSection.type]} section</div>
            <label className="property-label" htmlFor="section-title">Heading</label><input id="section-title" className="property-input" value={selectedSection.title} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { title: e.target.value })} data-testid="input-section-title" />
            <label className="property-label" htmlFor="section-body">Text</label><textarea id="section-body" className="property-input property-textarea" value={selectedSection.body} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { body: e.target.value })} data-testid="input-section-body" />
+            {selectedSection.type === 'hero' && <>
+              <label className="property-label" htmlFor="section-eyebrow">Eyebrow</label><input id="section-eyebrow" className="property-input" value={selectedSection.eyebrow || ''} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { eyebrow: e.target.value })} data-testid="input-section-eyebrow" />
+              <label className="property-label" htmlFor="section-cta-label">Button label</label><input id="section-cta-label" className="property-input" value={selectedSection.ctaLabel || ''} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { ctaLabel: e.target.value })} data-testid="input-section-cta-label" />
+              <label className="property-label" htmlFor="section-cta-url">Button link</label><input id="section-cta-url" className="property-input" value={selectedSection.ctaUrl || ''} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { ctaUrl: e.target.value })} data-testid="input-section-cta-url" />
+            </>}
+            {['hero', 'features', 'gallery'].includes(selectedSection.type) && <>
+              <label className="property-label" htmlFor="section-image-hint">Photo guidance</label><input id="section-image-hint" className="property-input" value={selectedSection.imageHint || ''} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { imageHint: e.target.value })} data-testid="input-section-image-hint" />
+              <label className="property-label" htmlFor="section-image-url">Photo URL (optional)</label><input id="section-image-url" className="property-input" value={selectedSection.imageUrl || ''} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { imageUrl: e.target.value })} data-testid="input-section-image-url" />
+            </>}
           </div>
            <div className="property-section"><div className="property-title">Spacing</div><label className="property-label" htmlFor="section-spacing">Section padding</label><div className="range-row"><input id="section-spacing" type="range" min="20" max="100" step="4" value={selectedSection.padding} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { padding: Number(e.target.value) })} data-testid="input-section-spacing" /><span className="range-value">{selectedSection.padding}px</span></div></div>
+          <div className="property-section"><div className="property-title">Section typography</div><label className="property-label" htmlFor="section-font-size">Heading size</label><div className="range-row"><input id="section-font-size" type="range" min="12" max="96" step="1" value={selectedSection.fontSize ?? 42} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { fontSize: Number(e.target.value) })} data-testid="input-section-font-size" /><span className="range-value">{selectedSection.fontSize ?? 42}px</span></div><label className="property-label" htmlFor="section-font-family" style={{ marginTop: 10 }}>Font family</label><select id="section-font-family" className="property-input" value={selectedSection.fontFamily || 'serif'} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { fontFamily: e.target.value as FontFamily })} data-testid="select-section-font-family"><option value="sans">Sans serif</option><option value="serif">Serif</option><option value="mono">Monospace</option></select></div>
+          <div className="property-section"><div className="property-title">Section colors & shape</div>
+            <label className="color-row">Background <input type="color" value={selectedSection.backgroundColor || project.theme.backgroundColor} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { backgroundColor: e.target.value })} aria-label="Section background color" data-testid="input-section-background" /></label>
+            <label className="color-row">Text <input type="color" value={selectedSection.textColor || project.theme.textColor} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { textColor: e.target.value })} aria-label="Section text color" data-testid="input-section-text-color" /></label>
+            <label className="color-row">Border <input type="color" value={selectedSection.borderColor || '#30303a'} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { borderColor: e.target.value })} aria-label="Section border color" data-testid="input-section-border" /></label>
+            <label className="property-label" htmlFor="section-radius">Corner radius</label><div className="range-row"><input id="section-radius" type="range" min="0" max="48" step="2" value={selectedSection.borderRadius ?? 0} disabled={selectedSection.locked} onChange={e => patchSection(selectedSection.id, { borderRadius: Number(e.target.value) })} data-testid="input-section-radius" /><span className="range-value">{selectedSection.borderRadius ?? 0}px</span></div>
+          </div>
           <div className="property-section"><div className="property-title">Page colors</div>
             <label className="color-row">Accent color <input type="color" value={project.theme.primaryColor} onChange={e => patchProject({ theme: { ...project.theme, primaryColor: e.target.value } })} aria-label="Primary color" data-testid="input-primary-color" /></label>
             <label className="color-row">Background <input type="color" value={project.theme.backgroundColor} onChange={e => patchProject({ theme: { ...project.theme, backgroundColor: e.target.value } })} aria-label="Background color" data-testid="input-background-color" /></label>
